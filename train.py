@@ -54,6 +54,9 @@ class TrainingArguments(transformers.TrainingArguments):
     merge : Optional[bool] = field(default=False,metadata={"help": "Merge the PiSSA adapter to the residual model or LoRA to the base model"},)
 
 class SavePeftModelCallback(transformers.TrainerCallback):
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+
     def save_model(self, args, state, kwargs):
         logger.info('Saving PEFT checkpoint...')
         if state.best_model_checkpoint is not None:
@@ -63,7 +66,8 @@ class SavePeftModelCallback(transformers.TrainerCallback):
 
         peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
         kwargs["model"].save_pretrained(peft_model_path)
-        kwargs["tokenizer"].save_pretrained(peft_model_path)
+        tokenizer = kwargs.get("tokenizer", self.tokenizer)
+        tokenizer.save_pretrained(peft_model_path)
 
     def on_save(self, args, state, control, **kwargs):
         self.save_model(args, state, kwargs)
@@ -288,7 +292,7 @@ def train():
 
     trainer = Trainer(model=model, tokenizer=tokenizer, args=script_args, **data_module)
     if not script_args.full_finetune:
-        trainer.add_callback(SavePeftModelCallback)
+        trainer.add_callback(SavePeftModelCallback(tokenizer))
     trainer.train(resume_from_checkpoint = resume_from_checkpoint_dir)
     trainer.save_state()
     if not script_args.full_finetune and script_args.merge:
