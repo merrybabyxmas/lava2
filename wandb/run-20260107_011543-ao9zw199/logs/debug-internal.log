@@ -1,0 +1,7 @@
+{"time":"2026-01-07T01:15:43.589823421+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-07T01:15:43.952571034+09:00","level":"INFO","msg":"stream: created new stream","id":"ao9zw199"}
+{"time":"2026-01-07T01:15:43.952692208+09:00","level":"INFO","msg":"handler: started","stream_id":"ao9zw199"}
+{"time":"2026-01-07T01:15:43.952857914+09:00","level":"INFO","msg":"stream: started","id":"ao9zw199"}
+{"time":"2026-01-07T01:15:43.952880745+09:00","level":"INFO","msg":"writer: started","stream_id":"ao9zw199"}
+{"time":"2026-01-07T01:15:43.952883415+09:00","level":"INFO","msg":"sender: started","stream_id":"ao9zw199"}
+{"time":"2026-01-07T01:34:14.844618031+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/ao9zw199/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

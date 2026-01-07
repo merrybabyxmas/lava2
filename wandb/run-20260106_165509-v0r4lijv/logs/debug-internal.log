@@ -1,0 +1,8 @@
+{"time":"2026-01-06T16:55:10.224689329+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-06T16:55:10.601228548+09:00","level":"INFO","msg":"stream: created new stream","id":"v0r4lijv"}
+{"time":"2026-01-06T16:55:10.602612243+09:00","level":"INFO","msg":"handler: started","stream_id":"v0r4lijv"}
+{"time":"2026-01-06T16:55:10.602680195+09:00","level":"INFO","msg":"stream: started","id":"v0r4lijv"}
+{"time":"2026-01-06T16:55:10.602702785+09:00","level":"INFO","msg":"sender: started","stream_id":"v0r4lijv"}
+{"time":"2026-01-06T16:55:10.602706125+09:00","level":"INFO","msg":"writer: started","stream_id":"v0r4lijv"}
+{"time":"2026-01-07T06:54:41.439890999+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/v0r4lijv/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-07T06:58:26.286351321+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/v0r4lijv/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

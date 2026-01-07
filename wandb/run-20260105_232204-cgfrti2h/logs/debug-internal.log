@@ -1,0 +1,8 @@
+{"time":"2026-01-05T23:22:04.505498302+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T23:22:04.871865947+09:00","level":"INFO","msg":"stream: created new stream","id":"cgfrti2h"}
+{"time":"2026-01-05T23:22:04.87197376+09:00","level":"INFO","msg":"handler: started","stream_id":"cgfrti2h"}
+{"time":"2026-01-05T23:22:04.872099923+09:00","level":"INFO","msg":"stream: started","id":"cgfrti2h"}
+{"time":"2026-01-05T23:22:04.872143704+09:00","level":"INFO","msg":"writer: started","stream_id":"cgfrti2h"}
+{"time":"2026-01-05T23:22:04.872146864+09:00","level":"INFO","msg":"sender: started","stream_id":"cgfrti2h"}
+{"time":"2026-01-06T02:04:20.652330872+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-conversation-ver3/cgfrti2h/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-06T03:23:45.015854827+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-conversation-ver3/cgfrti2h/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

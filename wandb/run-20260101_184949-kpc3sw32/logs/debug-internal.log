@@ -1,0 +1,6 @@
+{"time":"2026-01-01T18:49:49.316530894+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-01T18:49:49.681353963+09:00","level":"INFO","msg":"stream: created new stream","id":"kpc3sw32"}
+{"time":"2026-01-01T18:49:49.681457123+09:00","level":"INFO","msg":"handler: started","stream_id":"kpc3sw32"}
+{"time":"2026-01-01T18:49:49.681617973+09:00","level":"INFO","msg":"stream: started","id":"kpc3sw32"}
+{"time":"2026-01-01T18:49:49.681639824+09:00","level":"INFO","msg":"writer: started","stream_id":"kpc3sw32"}
+{"time":"2026-01-01T18:49:49.681674354+09:00","level":"INFO","msg":"sender: started","stream_id":"kpc3sw32"}

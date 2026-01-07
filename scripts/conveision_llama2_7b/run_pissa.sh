@@ -1,8 +1,15 @@
 BASE_MODEL="meta-llama/Llama-2-7b-hf"
 RES_MODEL="output/PiSSA-Llama-2-7b-r128"
 OUTPUT_PATH="output/conversation-PiSSA-Llama-2-7b-r128"
-DATA_PATH="pissa-dataset"
+DATA_PATH="fxmeng/pissa-dataset"
 export HF_ENDPOINT=https://hf-mirror.com
+
+
+export WANDB_PROJECT=NLG-conversation
+export WANDB_NAME=Pissa_Llama2_7B_r128_bs64
+
+export NCCL_DEBUG=INFO
+export NCCL_IB_DISABLE=1
 
 #huggingface-cli download --token hf_*** --resume-download $RES_MODEL --local-dir $RES_MODEL
 if [ -e $RES_MODEL ]; then
@@ -13,7 +20,7 @@ else
 fi
 
 # batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 128
-deepspeed --master_port=16971 --include=localhost:0,1,2,3,4,5,6,7 train.py \
+deepspeed --master_port=16971 --include=localhost:0,1,2,3 train.py \
     --deepspeed configs/ds_config_zero2_no_offload.json \
     --model_name_or_path $RES_MODEL \
     --full_finetune False \

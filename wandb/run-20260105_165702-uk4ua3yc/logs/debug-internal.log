@@ -1,0 +1,7 @@
+{"time":"2026-01-05T16:57:03.194684418+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T16:57:03.590528912+09:00","level":"INFO","msg":"stream: created new stream","id":"uk4ua3yc"}
+{"time":"2026-01-05T16:57:03.590621285+09:00","level":"INFO","msg":"handler: started","stream_id":"uk4ua3yc"}
+{"time":"2026-01-05T16:57:03.590778178+09:00","level":"INFO","msg":"stream: started","id":"uk4ua3yc"}
+{"time":"2026-01-05T16:57:03.590808229+09:00","level":"INFO","msg":"writer: started","stream_id":"uk4ua3yc"}
+{"time":"2026-01-05T16:57:03.59083157+09:00","level":"INFO","msg":"sender: started","stream_id":"uk4ua3yc"}
+{"time":"2026-01-05T21:19:04.351205269+09:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/uk4ua3yc/file_stream\": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)"}

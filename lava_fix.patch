@@ -1,0 +1,43 @@
+--- train.py.backup
++++ train.py
+@@ -260,17 +260,29 @@
+             model = get_peft_model(model, peft_config)
+             script_args.merge = False
+             
+-            # 🔥 LAVA 전용 처리: 1. 전부 freeze
+-            for _, p in model.named_parameters():
+-                p.requires_grad = False
+-
+-            # 🔥 LAVA 전용 처리: 2. LAVA module만, 그리고 float 파라미터만 trainable
+-            for module in model.modules():
+-                if module.__class__.__name__.lower().startswith("lava"):
+-                    for p in module.parameters():
+-                        if p.dtype.is_floating_point:
+-                            p.requires_grad = True
+-   
++            # 🔥 LAVA 전용 처리: parameter name 기반으로 처리
++            logger.info("Setting LAVA parameters to trainable...")
++            
++            trainable_params = []
++            for name, param in model.named_parameters():
++                # LAVA 파라미터만 trainable로 설정
++                if 'lava' in name.lower():
++                    if param.dtype.is_floating_point:
++                        param.requires_grad = True
++                        trainable_params.append(name)
++                        
++                        # 🔥 Device 이동
++                        if param.device.type == 'cpu':
++                            param.data = param.data.to('cuda:0')
++                    else:
++                        param.requires_grad = False
++                else:
++                    # Non-LAVA 파라미터는 freeze
++                    param.requires_grad = False
++            
++            if script_args.local_rank == 0:
++                logger.info(f"Set {len(trainable_params)} LAVA parameters to trainable")
++                logger.info(f"Sample trainable params: {trainable_params[:5]}")
+         else:
+             logger.info(f'Init LoRA/PiSSA modules...')
+             peft_config = LoraConfig(

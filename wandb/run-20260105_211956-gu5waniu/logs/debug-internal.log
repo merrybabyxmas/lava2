@@ -1,0 +1,6 @@
+{"time":"2026-01-05T21:19:57.042781472+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T21:19:57.425275898+09:00","level":"INFO","msg":"stream: created new stream","id":"gu5waniu"}
+{"time":"2026-01-05T21:19:57.426002667+09:00","level":"INFO","msg":"stream: started","id":"gu5waniu"}
+{"time":"2026-01-05T21:19:57.426007737+09:00","level":"INFO","msg":"handler: started","stream_id":"gu5waniu"}
+{"time":"2026-01-05T21:19:57.42609155+09:00","level":"INFO","msg":"writer: started","stream_id":"gu5waniu"}
+{"time":"2026-01-05T21:19:57.426095841+09:00","level":"INFO","msg":"sender: started","stream_id":"gu5waniu"}

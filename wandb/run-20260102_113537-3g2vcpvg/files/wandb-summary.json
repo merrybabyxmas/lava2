@@ -1,0 +1,1 @@
+{"gsm8k/total":1319,"_runtime":67993,"gsm8k/accuracy":0.030326004548900682,"_timestamp":1.7673893321142325e+09,"_step":1319,"final/gsm8k_accuracy":0.030326004548900682,"_wandb":{"runtime":67993},"final/gsm8k_correct":40,"final/gsm8k_total":1319,"gsm8k/correct":0}

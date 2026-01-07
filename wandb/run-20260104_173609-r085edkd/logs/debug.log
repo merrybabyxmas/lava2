@@ -1,0 +1,23 @@
+2026-01-04 17:36:09,617 INFO    MainThread:1330914 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2026-01-04 17:36:09,617 INFO    MainThread:1330914 [wandb_setup.py:_flush():80] Configure stats pid to 1330914
+2026-01-04 17:36:09,617 INFO    MainThread:1330914 [wandb_setup.py:_flush():80] Loading settings from /home/dongwoo38/.config/wandb/settings
+2026-01-04 17:36:09,617 INFO    MainThread:1330914 [wandb_setup.py:_flush():80] Loading settings from /home/dongwoo38/PiSSA/wandb/settings
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_init.py:setup_run_log_directory():714] Logging user logs to /home/dongwoo38/PiSSA/wandb/run-20260104_173609-r085edkd/logs/debug.log
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to /home/dongwoo38/PiSSA/wandb/run-20260104_173609-r085edkd/logs/debug-internal.log
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_init.py:init():841] calling init triggers
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'model_id': 'lava-metamath-r64', 'base_model': 'meta-llama/Llama-2-7b-hf', 'adapter_path': '/home/dongwoo38/PiSSA/output/metamath-LAVA-Llama2-7b-r128-vib0.1-stab0.1-seed42/bits32_r128_a128_stab0.1_vib0.1/checkpoint-6250/adapter_model', 'dataset': 'gsm8k', 'num_samples': None, '_wandb': {}}
+2026-01-04 17:36:09,618 INFO    MainThread:1330914 [wandb_init.py:init():889] starting backend
+2026-01-04 17:36:09,860 INFO    MainThread:1330914 [wandb_init.py:init():892] sending inform_init request
+2026-01-04 17:36:09,864 INFO    MainThread:1330914 [wandb_init.py:init():900] backend started and connected
+2026-01-04 17:36:09,865 INFO    MainThread:1330914 [wandb_init.py:init():970] updated telemetry
+2026-01-04 17:36:09,869 INFO    MainThread:1330914 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2026-01-04 17:36:10,546 INFO    MainThread:1330914 [wandb_init.py:init():1041] starting run threads in backend
+2026-01-04 17:36:10,661 INFO    MainThread:1330914 [wandb_run.py:_console_start():2521] atexit reg
+2026-01-04 17:36:10,661 INFO    MainThread:1330914 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2026-01-04 17:36:10,661 INFO    MainThread:1330914 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2026-01-04 17:36:10,661 INFO    MainThread:1330914 [wandb_run.py:_redirect():2461] Redirects installed.
+2026-01-04 17:36:10,665 INFO    MainThread:1330914 [wandb_init.py:init():1081] run started, returning control to user process
+2026-01-04 22:50:53,944 INFO    wandb-AsyncioManager-main:1330914 [service_client.py:_forward_responses():80] Reached EOF.
+2026-01-04 22:50:53,945 INFO    wandb-AsyncioManager-main:1330914 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.

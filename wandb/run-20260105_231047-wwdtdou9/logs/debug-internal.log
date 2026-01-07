@@ -1,0 +1,13 @@
+{"time":"2026-01-05T23:10:47.445076137+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T23:10:47.803817687+09:00","level":"INFO","msg":"stream: created new stream","id":"wwdtdou9"}
+{"time":"2026-01-05T23:10:47.803891468+09:00","level":"INFO","msg":"handler: started","stream_id":"wwdtdou9"}
+{"time":"2026-01-05T23:10:47.804070963+09:00","level":"INFO","msg":"stream: started","id":"wwdtdou9"}
+{"time":"2026-01-05T23:10:47.804144444+09:00","level":"INFO","msg":"writer: started","stream_id":"wwdtdou9"}
+{"time":"2026-01-05T23:10:47.804152454+09:00","level":"INFO","msg":"sender: started","stream_id":"wwdtdou9"}
+{"time":"2026-01-06T02:42:03.517589374+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/wwdtdou9/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-06T09:27:03.795665059+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-metamath-final/wwdtdou9/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-06T11:47:58.496579761+09:00","level":"INFO","msg":"stream: closing","id":"wwdtdou9"}
+{"time":"2026-01-06T11:47:59.41532721+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-06T11:47:59.726143569+09:00","level":"INFO","msg":"handler: closed","stream_id":"wwdtdou9"}
+{"time":"2026-01-06T11:47:59.726295252+09:00","level":"INFO","msg":"sender: closed","stream_id":"wwdtdou9"}
+{"time":"2026-01-06T11:47:59.726307643+09:00","level":"INFO","msg":"stream: closed","id":"wwdtdou9"}

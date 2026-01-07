@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""
+Conversation Model Evaluation Script
+학습된 LAVA/LoRA/PiSSA 모델을 평가합니다.
+"""
+
+import torch
+import argparse
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+from datasets import load_dataset
+from tqdm import tqdm
+import json
+import os
+from collections import defaultdict
+
+PROMPT = (
+    "Below is an instruction that describes a task. "
+    "Write a response that appropriately completes the request.\n\n"
+    "### Instruction:\n{instruction}\n\n### Response:"
+)
+
+def load_model_and_tokenizer(base_model_path, adapter_path=None, merge=False):
+    """모델과 토크나이저 로드"""
+    print(f"Loading tokenizer from {base_model_path}...")
+    tokenizer = AutoTokenizer.from_pretrained(
+        base_model_path,
+        trust_remote_code=True,
+        use_fast=True
+    )
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    print(f"Loading base model from {base_model_path}...")
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model_path,
+        device_map="auto",
+        torch_dtype=torch.float16,
+        trust_remote_code=True
+    )
+    
+    if adapter_path:
+        print(f"Loading adapter from {adapter_path}...")
+        model = PeftModel.from_pretrained(model, adapter_path)
+        
+        if merge:
+            print("Merging adapter with base model...")
+            model = model.merge_and_unload()
+    
+    model.eval()
+    print("Model loaded successfully!")
+    return model, tokenizer
+
+def generate_response(model, tokenizer, instruction, max_new_tokens=256, temperature=0.7):
+    """단일 응답 생성"""
+    prompt = PROMPT.format(instruction=instruction)
+    
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            do_sample=True,
+            top_p=0.9,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+    
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Extract only the response part
+    if "### Response:" in response:
+        response = response.split("### Response:")[-1].strip()
+    
+    return response
+
+def evaluate_on_dataset(model, tokenizer, dataset, num_samples=100, max_new_tokens=256):
+    """데이터셋에서 평가"""
+    results = []
+    
+    print(f"\nEvaluating on {num_samples} samples...")
+    
+    # Subsample if needed
+    if len(dataset) > num_samples:
+        indices = torch.randperm(len(dataset))[:num_samples].tolist()
+        dataset = dataset.select(indices)
+    
+    for idx, example in enumerate(tqdm(dataset, desc="Generating")):
+        instruction = example['instruction']
+        ground_truth = example['output']
+        
+        generated = generate_response(
+            model, tokenizer, instruction, 
+            max_new_tokens=max_new_tokens
+        )
+        
+        results.append({
+            'index': idx,
+            'instruction': instruction,
+            'ground_truth': ground_truth,
+            'generated': generated
+        })
+    
+    return results
+
+def simple_quality_metrics(results):
+    """간단한 품질 지표 계산"""
+    metrics = {
+        'avg_length': 0,
+        'avg_ground_truth_length': 0,
+        'samples': len(results)
+    }
+    
+    total_gen_len = 0
+    total_gt_len = 0
+    
+    for r in results:
+        total_gen_len += len(r['generated'].split())
+        total_gt_len += len(r['ground_truth'].split())
+    
+    metrics['avg_length'] = total_gen_len / len(results)
+    metrics['avg_ground_truth_length'] = total_gt_len / len(results)
+    
+    return metrics
+
+def interactive_mode(model, tokenizer):
+    """대화형 모드"""
+    print("\n" + "="*80)
+    print("Interactive Mode - Type 'quit' to exit")
+    print("="*80 + "\n")
+    
+    while True:
+        instruction = input("\n🤔 Instruction: ")
+        
+        if instruction.lower() in ['quit', 'exit', 'q']:
+            print("Goodbye!")
+            break
+        
+        if not instruction.strip():
+            continue
+        
+        print("\n🤖 Response:", end=" ", flush=True)
+        response = generate_response(model, tokenizer, instruction)
+        print(response)
+        print()
+
+def main():
+    parser = argparse.ArgumentParser(description='Evaluate conversation model')
+    parser.add_argument('--base_model', type=str, default='meta-llama/Llama-2-7b-hf',
+                       help='Base model path')
+    parser.add_argument('--adapter_path', type=str, 
+                       default='output/conversation-LAVA-Llama-2-7b-r8',
+                       help='Path to adapter (LoRA/PiSSA/LAVA)')
+    parser.add_argument('--merge', action='store_true',
+                       help='Merge adapter with base model')
+    parser.add_argument('--data_path', type=str, default='fxmeng/pissa-dataset',
+                       help='Dataset path')
+    parser.add_argument('--sub_task', type=str, default='conversation',
+                       help='Subtask name')
+    parser.add_argument('--num_samples', type=int, default=100,
+                       help='Number of samples to evaluate')
+    parser.add_argument('--max_new_tokens', type=int, default=256,
+                       help='Max tokens to generate')
+    parser.add_argument('--output_file', type=str, default='eval_results.json',
+                       help='Output JSON file')
+    parser.add_argument('--interactive', action='store_true',
+                       help='Run in interactive mode')
+    
+    args = parser.parse_args()
+    
+    # Load model
+    model, tokenizer = load_model_and_tokenizer(
+        args.base_model, 
+        args.adapter_path, 
+        args.merge
+    )
+    
+    if args.interactive:
+        # Interactive mode
+        interactive_mode(model, tokenizer)
+    else:
+        # Evaluation mode
+        print(f"\nLoading dataset: {args.data_path}/{args.sub_task}")
+        dataset = load_dataset(
+            args.data_path, 
+            data_dir=args.sub_task, 
+            split='test'  # Use test split for evaluation
+        )
+        
+        print(f"Dataset size: {len(dataset)}")
+        
+        # Evaluate
+        results = evaluate_on_dataset(
+            model, tokenizer, dataset, 
+            num_samples=args.num_samples,
+            max_new_tokens=args.max_new_tokens
+        )
+        
+        # Calculate metrics
+        metrics = simple_quality_metrics(results)
+        
+        # Save results
+        output_data = {
+            'config': vars(args),
+            'metrics': metrics,
+            'results': results
+        }
+        
+        output_path = os.path.join(
+            os.path.dirname(args.adapter_path) if args.adapter_path else '.',
+            args.output_file
+        )
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        
+        print(f"\n{'='*80}")
+        print("Evaluation Complete!")
+        print(f"{'='*80}")
+        print(f"\nMetrics:")
+        print(f"  Samples evaluated: {metrics['samples']}")
+        print(f"  Avg generated length: {metrics['avg_length']:.1f} words")
+        print(f"  Avg ground truth length: {metrics['avg_ground_truth_length']:.1f} words")
+        print(f"\nResults saved to: {output_path}")
+        
+        # Show a few examples
+        print(f"\n{'='*80}")
+        print("Sample Outputs (first 3):")
+        print(f"{'='*80}\n")
+        
+        for i, result in enumerate(results[:3]):
+            print(f"Example {i+1}:")
+            print(f"Instruction: {result['instruction']}")
+            print(f"\nGround Truth: {result['ground_truth']}")
+            print(f"\nGenerated: {result['generated']}")
+            print(f"\n{'-'*80}\n")
+
+if __name__ == "__main__":
+    main()

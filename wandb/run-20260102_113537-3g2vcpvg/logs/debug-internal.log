@@ -1,0 +1,13 @@
+{"time":"2026-01-02T11:35:37.599657884+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-02T11:35:37.968984337+09:00","level":"INFO","msg":"stream: created new stream","id":"3g2vcpvg"}
+{"time":"2026-01-02T11:35:37.969058879+09:00","level":"INFO","msg":"handler: started","stream_id":"3g2vcpvg"}
+{"time":"2026-01-02T11:35:37.969163041+09:00","level":"INFO","msg":"stream: started","id":"3g2vcpvg"}
+{"time":"2026-01-02T11:35:37.969182411+09:00","level":"INFO","msg":"writer: started","stream_id":"3g2vcpvg"}
+{"time":"2026-01-02T11:35:37.969190382+09:00","level":"INFO","msg":"sender: started","stream_id":"3g2vcpvg"}
+{"time":"2026-01-03T05:06:48.516114487+09:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/DongwooYein/Math-Eval/3g2vcpvg/file_stream\": dial tcp: lookup api.wandb.ai on 1.1.1.1:53: read udp 163.239.28.38:37470->1.1.1.1:53: read: connection refused"}
+{"time":"2026-01-03T06:28:53.036215887+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-03T06:28:53.361727631+09:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-01-03T06:28:53.36531217+09:00","level":"INFO","msg":"stream: closing","id":"3g2vcpvg"}
+{"time":"2026-01-03T06:28:53.365336961+09:00","level":"INFO","msg":"handler: closed","stream_id":"3g2vcpvg"}
+{"time":"2026-01-03T06:28:53.365401772+09:00","level":"INFO","msg":"sender: closed","stream_id":"3g2vcpvg"}
+{"time":"2026-01-03T06:28:53.365424613+09:00","level":"INFO","msg":"stream: closed","id":"3g2vcpvg"}

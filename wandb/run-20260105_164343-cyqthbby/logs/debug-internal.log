@@ -1,0 +1,6 @@
+{"time":"2026-01-05T16:43:43.304305187+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T16:43:43.671102292+09:00","level":"INFO","msg":"stream: created new stream","id":"cyqthbby"}
+{"time":"2026-01-05T16:43:43.671251106+09:00","level":"INFO","msg":"handler: started","stream_id":"cyqthbby"}
+{"time":"2026-01-05T16:43:43.671505072+09:00","level":"INFO","msg":"stream: started","id":"cyqthbby"}
+{"time":"2026-01-05T16:43:43.671537992+09:00","level":"INFO","msg":"writer: started","stream_id":"cyqthbby"}
+{"time":"2026-01-05T16:43:43.671571833+09:00","level":"INFO","msg":"sender: started","stream_id":"cyqthbby"}

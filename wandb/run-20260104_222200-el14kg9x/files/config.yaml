@@ -1,0 +1,101 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            hduql4ro2db561gdfxy7vxkzrxhmhc7d:
+                args:
+                    - --base_model
+                    - meta-llama/Llama-2-7b-hf
+                    - --adapter_path
+                    - /home/dongwoo38/PiSSA/output/metamath-LAVA-Llama2-7b-r128-vib0.1-stab0.1-seed42/bits32_r128_a128_stab0.1_vib0.1/checkpoint-6250/adapter_modell
+                    - --model_id
+                    - lava-metamath-r64
+                    - --dataset
+                    - gsm8k
+                    - --wandb_project
+                    - Math-Eval
+                    - --wandb_name
+                    - lava-r128-seed42-gsm8k
+                codePath: evaluate_math.py
+                codePathLocal: evaluate_math.py
+                cpu_count: 24
+                cpu_count_logical: 48
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "1966736678912"
+                        used: "1328296017920"
+                email: yein0330@sogang.ac.kr
+                executable: /home/dongwoo38/miniconda3/envs/pissa/bin/python
+                git:
+                    commit: a6e4c9c1d8bc1b73c0fd2f524be8e00e26043395
+                    remote: https://github.com/GraphPKU/PiSSA.git
+                gpu: NVIDIA GeForce RTX 4090
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-1a133bd2-ae1e-86f3-56bf-38518f125ad4
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-6068f209-96d6-139d-80fb-7db74591f8b4
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-4f8fb1fe-e7c5-aad3-6f94-a16bee1178a0
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-760bf631-f8cc-ccc4-3350-5f6d4379dbe5
+                host: user-WRX80-Creator
+                memory:
+                    total: "134894039040"
+                os: Linux-6.14.0-36-generic-x86_64-with-glibc2.39
+                program: /home/dongwoo38/PiSSA/evaluate_math.py
+                python: CPython 3.10.19
+                root: /home/dongwoo38/PiSSA
+                startedAt: "2026-01-04T13:22:00.956828Z"
+                writerId: hduql4ro2db561gdfxy7vxkzrxhmhc7d
+        m: []
+        python_version: 3.10.19
+        t:
+            "1":
+                - 1
+                - 11
+                - 49
+                - 51
+                - 71
+                - 98
+                - 105
+            "2":
+                - 1
+                - 11
+                - 49
+                - 51
+                - 71
+                - 98
+                - 105
+            "3":
+                - 13
+                - 16
+            "4": 3.10.19
+            "5": 0.23.1
+            "6": 4.45.1
+            "12": 0.23.1
+            "13": linux-x86_64
+adapter_path:
+    value: /home/dongwoo38/PiSSA/output/metamath-LAVA-Llama2-7b-r128-vib0.1-stab0.1-seed42/bits32_r128_a128_stab0.1_vib0.1/checkpoint-6250/adapter_modell
+base_model:
+    value: meta-llama/Llama-2-7b-hf
+dataset:
+    value: gsm8k
+model_id:
+    value: lava-metamath-r64
+num_samples:
+    value: null
