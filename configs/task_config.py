@@ -1,4 +1,3 @@
-
 # ----------------------------------------------------------
 # GLUE META
 # ----------------------------------------------------------
@@ -21,10 +20,34 @@ GLUE_META = {
                  s1="sentence1", s2="sentence2", eval_key="validation"),
 }
 
+# ----------------------------------------------------------
+# TASK CONFIGS
+# ----------------------------------------------------------
 
+# BitFit: 논문 기준 1e-3 LR 권장
+BITFIT_TASK_CONFIG = {
+    "mnli": dict(epochs=10, batch=32, lr=1e-3),
+    "sst2": dict(epochs=10, batch=32, lr=1e-3),
+    "mrpc": dict(epochs=20, batch=32, lr=1e-3),
+    "cola": dict(epochs=30, batch=32, lr=1e-3),
+    "qnli": dict(epochs=25, batch=32, lr=1e-3),
+    "qqp": dict(epochs=10, batch=16, lr=1e-3),
+    "rte": dict(epochs=50, batch=32, lr=1e-3),
+    "stsb": dict(epochs=30, batch=16, lr=1e-3),
+}
 
+# AdaLoRA: LoRA 설정을 기반으로 최적화
+ADALORA_TASK_CONFIG = {
+    "mnli": dict(epochs=10, batch=32, lr=3e-4, alpha=16),
+    "sst2": dict(epochs=10, batch=32, lr=1e-4, alpha=16),
+    "mrpc": dict(epochs=20, batch=32, lr=1e-4, alpha=16),
+    "cola": dict(epochs=30, batch=32, lr=4e-4, alpha=16),
+    "qnli": dict(epochs=25, batch=32, lr=3e-4, alpha=16),
+    "qqp": dict(epochs=10, batch=16, lr=3e-4, alpha=16),
+    "rte": dict(epochs=50, batch=32, lr=4e-4, alpha=16),
+    "stsb": dict(epochs=30, batch=16, lr=4e-4, alpha=16),
+}
 
-# PiSSA hyperparameters from Table 10
 PISSA_TASK_CONFIG = {
     "mnli": dict(epochs=5, batch=16, lr=5e-4, alpha=8),
     "sst2": dict(epochs=20, batch=16, lr=3e-5, alpha=8),
@@ -59,21 +82,14 @@ LORA_TASK_CONFIG = {
 }
 
 LAVA_TASK_CONFIG = {
-    "mnli": dict(epochs=5, batch=8, lr=5e-4, alpha=8),
-    "sst2": dict(epochs=20, batch=8, lr=3e-5, alpha=8),
-    "mrpc": dict(epochs=20, batch=8, lr=2e-4, alpha=8),
-    "cola": dict(epochs=20, batch=8, lr=1e-4, alpha=8),
-    "qnli": dict(epochs=10, batch=16, lr=1e-4, alpha=16),
-    "qqp": dict(epochs=10, batch=8, lr=1e-4, alpha=8),
-    "rte": dict(epochs=50, batch=8, lr=1e-4, alpha=8),
-    "stsb": dict(epochs=20, batch=8, lr=3e-4, alpha=8),
+    "mnli": dict(epochs=10, batch=32, lr=3e-4, alpha=8),
+    "sst2": dict(epochs=10, batch=32, lr=1e-4, alpha=8),
+    "mrpc": dict(epochs=20, batch=32, lr=3e-4, alpha=8),
+    "cola": dict(epochs=60, batch=32, lr=4e-4, alpha=8),
+    "qnli": dict(epochs=25, batch=32, lr=3e-4, alpha=8),
+    "qqp": dict(epochs=10, batch=16, lr=3e-4, alpha=8),
+    "rte": dict(epochs=50, batch=32, lr=4e-4, alpha=8),
+    "stsb": dict(epochs=30, batch=16, lr=4e-4, alpha=8),
 }
 
-
 MOCA_TASK_CONFIG = LORA_TASK_CONFIG
-
-# # Lava default (너가 원하는 걸 추가해도 됨)
-# LAVA_TASK_CONFIG = {
-#     task: dict(epochs=3, batch=32, lr=3e-4, alpha=8)
-#     for task in GLUE_META.keys()
-# }

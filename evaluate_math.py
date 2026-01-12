@@ -26,20 +26,30 @@ import peft
 from peft.utils import PeftType
 from peft.mapping import PEFT_TYPE_TO_CONFIG_MAPPING, PEFT_TYPE_TO_TUNER_MAPPING, PEFT_TYPE_TO_PREFIX_MAPPING
 
-# 1. LAVA Registration
+import peft.utils.save_and_load
+import peft.mapping
+from peft.utils.peft_types import PeftType
+
+# PeftType 에 LAVA 상수가 없는 경우 추가
 if not hasattr(PeftType, "LAVA"):
-    setattr(PeftType, "LAVA", "LAVA")
+    PeftType.LAVA = "LAVA"
 
 try:
-    from peft.tuners.lava import LavaConfig, LavaModel
-except ImportError:
-    pass
-
-for lava_key in ["LAVA", getattr(PeftType, "LAVA", None)]:
-    if lava_key:
-        PEFT_TYPE_TO_CONFIG_MAPPING[lava_key] = LavaConfig
-        PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
-
+    # 사용자 정의 LAVA 모듈 임포트
+    from peft.tuners.lava.config import LavaConfig
+    from peft.tuners.lava.model import LavaModel
+    
+    # PEFT 매핑 테이블 강제 업데이트
+    for lava_key in ["LAVA", PeftType.LAVA]:
+        peft.mapping.PEFT_TYPE_TO_CONFIG_MAPPING[lava_key] = LavaConfig
+        peft.mapping.PEFT_TYPE_TO_TUNER_MAPPING[lava_key] = LavaModel # 이 줄이 핵심입니다!
+        peft.mapping.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
+    
+    print("✅ LAVA mapping fully patched in evaluation script.")
+except ImportError as e:
+    print(f"❌ Failed to import LAVA modules: {e}")
+    print("Check if peft/tuners/lava/ directory exists in your environment.")
+# ----------------------------------------------------------
 print("✅ LAVA mapping manually patched in evaluation script.")
 
 def print_flush(*args, **kwargs):
@@ -62,7 +72,12 @@ def load_model(base_model_path, adapter_path):
         print_flush(f"Loading adapter from: {adapter_path}")
         model = PeftModel.from_pretrained(model, adapter_path)
         
-        # Synchronize LAVA layers with base layers
+        # 🔥 [추가] AttributeError: 'LavaModel' object has no attribute 'generation_config' 해결
+        # PeftModel에 generation_config가 없는 경우 베이스 모델의 것을 강제로 할당합니다.
+        if not hasattr(model, "generation_config"):
+            model.generation_config = model.base_model.model.generation_config
+        
+        # Synchronize LAVA layers with base layers (기존 코드)
         for name, module in model.named_modules():
             if 'lava' in name.lower():
                 parent_layer_name = name.rsplit('.', 1)[0]
@@ -77,7 +92,6 @@ def load_model(base_model_path, adapter_path):
     model.eval()
     print_flush(f"✅ Model loaded and LAVA layers synchronized.\n")
     return model, tokenizer
-
 # [extract_answer, normalize_answer, check_answer, generate_answer 함수들은 기존과 동일]
 def extract_answer(text, dataset_name):
     text = text.strip()

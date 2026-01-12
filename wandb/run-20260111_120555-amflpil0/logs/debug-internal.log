@@ -1,0 +1,12 @@
+{"time":"2026-01-11T12:05:55.576278429+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-11T12:05:55.93279375+09:00","level":"INFO","msg":"stream: created new stream","id":"amflpil0"}
+{"time":"2026-01-11T12:05:55.932854821+09:00","level":"INFO","msg":"handler: started","stream_id":"amflpil0"}
+{"time":"2026-01-11T12:05:55.932986024+09:00","level":"INFO","msg":"stream: started","id":"amflpil0"}
+{"time":"2026-01-11T12:05:55.933024835+09:00","level":"INFO","msg":"writer: started","stream_id":"amflpil0"}
+{"time":"2026-01-11T12:05:55.933045405+09:00","level":"INFO","msg":"sender: started","stream_id":"amflpil0"}
+{"time":"2026-01-11T19:39:49.701045016+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-11T19:39:50.009103247+09:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-01-11T19:39:50.011774542+09:00","level":"INFO","msg":"stream: closing","id":"amflpil0"}
+{"time":"2026-01-11T19:39:50.011787952+09:00","level":"INFO","msg":"handler: closed","stream_id":"amflpil0"}
+{"time":"2026-01-11T19:39:50.011865544+09:00","level":"INFO","msg":"sender: closed","stream_id":"amflpil0"}
+{"time":"2026-01-11T19:39:50.011882534+09:00","level":"INFO","msg":"stream: closed","id":"amflpil0"}

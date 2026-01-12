@@ -8,21 +8,25 @@ BASE_MODEL="meta-llama/Llama-2-7b-hf"
 DATA_PATH="fxmeng/pissa-dataset"
 SEED=42
 
-# 2. LAVA 하이퍼파라미터 및 DType 설정 (논문 Q-LAVA 세팅)
-LAMBDA_VIB=0.05
+# 2. LAVA 하이퍼파라미터 및 DType 설정
+LAMBDA_VIB=1.0
 LAMBDA_STAB=0.1
 RANK=128
+ALPHA=16
 
-# 🔥 논문 기준: 베이스 모델은 4-bit(int4), 어댑터는 fp32 사용
-BASE_DTYPE="int4"    
-ADAPTER_DTYPE="fp32" 
+# r=8, alpha=4 기준 최적 Bound인 16 설정 (혹은 비워두어 자동계산 유도)
 
-# 3. 출력 경로
-OUTPUT_PATH="output/conversation-LAVA-r${RANK}-B_${BASE_DTYPE}-A_${ADAPTER_DTYPE}-vib${LAMBDA_VIB}-seed${SEED}"
+BASE_DTYPE="int4"
+ADAPTER_DTYPE="fp32"
+
+# 3. 출력 경로 및 WandB 이름에 Alpha 추가
+# 이름 예시: LAVA_Llama2_7B_r128_a16_B-int4_vib0.0005
+WANDB_NAME="[CONVO]LAVA_Llama2_7B_r${RANK}_a${ALPHA}_B-${BASE_DTYPE}_A-${ADAPTER_DTYPE}_vib${LAMBDA_VIB}_seed${SEED}"
+OUTPUT_PATH="output/conversation-LAVA-mistral-r${RANK}-B_${BASE_DTYPE}-A_${ADAPTER_DTYPE}-vib${LAMBDA_VIB}-seed${SEED}"
 
 # 4. 환경 변수 설정
 export WANDB_PROJECT=NLG-conversation-ver3
-export WANDB_NAME="LAVA_Llama2_7B_r${RANK}_Q-LAVA_seed${SEED}_bs128"
+export WANDB_NAME=$WANDB_NAME
 
 # 분산 학습 및 CUDA 이슈 방지 설정
 export NCCL_DEBUG=WARN
@@ -56,7 +60,7 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:3 train.py \
   --adapter_dtype $ADAPTER_DTYPE \
   --init_weights lava \
   --lora_rank $RANK \
-  --lora_alpha 128 \
+  --lora_alpha $ALPHA \
   --lora_dropout 0 \
   --target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
   --data_path $DATA_PATH \
@@ -66,10 +70,10 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:3 train.py \
   --output_dir $OUTPUT_PATH \
   --num_train_epochs 1 \
   --model_max_length 256 \
-  --per_device_train_batch_size 2 \
+  --per_device_train_batch_size 4 \
   --gradient_checkpointing True \
-  --gradient_accumulation_steps 8 \
-  --learning_rate 2e-5 \
+  --gradient_accumulation_steps 32 \
+  --learning_rate 1e-4 \
   --warmup_ratio 0.03 \
   --lr_scheduler_type cosine \
   --logging_steps 10 \
@@ -80,4 +84,5 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:3 train.py \
   --optim adamw_torch \
   --merge False \
   --lambda_vib $LAMBDA_VIB \
-  --lambda_stab $LAMBDA_STAB
+  --lambda_stab $LAMBDA_STAB \
+  --lambda_latent_stability 1.0 

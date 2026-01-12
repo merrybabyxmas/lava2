@@ -16,6 +16,8 @@ import datasets
 import numpy as np
 from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training, PeftModel
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+import math
+import wandb
 
 # ============================================================
 # 1. PEFT 시스템 강제 주입 (LAVA 등록)
@@ -105,69 +107,136 @@ class TrainingArguments(transformers.TrainingArguments):
     dataset_field: List[str] = field(default=None)
     model_max_length: int = field(default=512)
     merge : Optional[bool] = field(default=False)
-    lambda_vib: float = field(default=0.005)
-    lambda_stab: float = field(default=0.1)
-
+    lambda_vib: float = field(default=0.1)
+    lambda_stab: float = field(default=1.0)
+    lambda_latent_stability: float = field(default=0.0)
 # ============================================================
 # 4. Custom Trainer (Stability & VIB Logging)
 # ============================================================
 class StabilityLavaTrainer(Trainer):
-    def __init__(self, *args, lambda_vib=0.1, lambda_stab=0.1, **kwargs):
+    def __init__(self, *args, lambda_vib=0.1, lambda_stab=0.1, lambda_latent_stability=0.1, **kwargs):
         super().__init__(*args, **kwargs)
         self.lambda_vib = lambda_vib
         self.lambda_stab = lambda_stab
-        self.loss_track = {"ce_loss": 0, "const_loss": 0, "vib_loss": 0}
+        self.lambda_latent_stability = lambda_latent_stability
+        
+        # 모든 키를 미리 초기화하여 KeyError 방지
+        self.loss_track = {
+            "ce_loss": 0,
+            "raw_const_loss": 0,
+            "weighted_const_loss": 0,
+            "raw_vib_loss": 0,
+            "weighted_vib_loss": 0,
+            "raw_latent_stab_loss": 0,
+            "weighted_latent_stab_loss": 0,
+            # 🔥 VIB 세부 성분 추가
+            "vib_mu2": 0,
+            "vib_logvar": 0,
+            "vib_sigma2": 0
+        }
+
+
 
     def compute_loss(self, model, inputs, return_outputs=False):
         if not model.training:
             return super().compute_loss(model, inputs, return_outputs)
 
-        sub_inputs = {k: v for k, v in inputs.items() if isinstance(v, torch.Tensor)}
-        labels = sub_inputs["labels"]
-
-        # 2-pass 효과를 위한 배치 복제
-        concat_inputs = {k: torch.cat([v, v], dim=0) for k, v in sub_inputs.items()}
-        outputs = model(**concat_inputs)
-        logits = outputs.logits
+        # Antithetic Sampling을 위해 배치 분할
+        half_size = inputs["input_ids"].size(0) // 2
+        if half_size == 0: 
+            return super().compute_loss(model, inputs, return_outputs)
         
-        # 1. CE Loss
-        concat_labels = torch.cat([labels, labels], dim=0)
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = concat_labels[..., 1:].contiguous()
-        ce_loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-
-        # 2. Stability Loss (Symmetric KL)
+        sub_inputs = {k: v[:half_size] for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+        labels = sub_inputs["labels"] # [batch, seq_len]
+        concat_inputs = {k: torch.cat([v, v], dim=0) for k, v in sub_inputs.items()}
+        
+        outputs = model(**concat_inputs)
+        logits = outputs.logits 
         logits1, logits2 = logits.chunk(2, dim=0)
+        
+        # 1. Task Loss (Next Token Prediction)
+        ce_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), torch.cat([labels, labels], dim=0).view(-1))
+
+        # 2. Stability Loss (Logit Consistency)
         p = F.log_softmax(logits1, dim=-1)
         q = F.softmax(logits2, dim=-1)
         p_rev = F.log_softmax(logits2, dim=-1)
         q_rev = F.softmax(logits1, dim=-1)
         const_loss = (F.kl_div(p, q, reduction='batchmean') + F.kl_div(p_rev, q_rev, reduction='batchmean')) / 2
 
-        # 3. VIB Loss
-        kl_divs = []
-        for m in model.modules():
-            if hasattr(m, "_last_mu") and getattr(m, "_last_mu") is not None:
-                # 첫 번째 pass의 통계치만 사용
-                mu, logvar = m._last_mu.chunk(2)[0], m._last_logvar.chunk(2)[0]
-                kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
-                kl_divs.append(kl)
-        vib_loss = torch.stack(kl_divs).mean() if kl_divs else torch.tensor(0.0).to(ce_loss.device)
+        # 3. VIB & Latent Stability 수집
+        kl_divs, latent_stabs = [], []
+        mu2_vals, logvar_vals, sigma2_vals = [], [], []
 
-        loss = ce_loss + self.lambda_stab * const_loss + self.lambda_vib * vib_loss
+        # 🔥 응답(Response) 구간 자동 탐지 마스크 생성
+        # labels가 -100(IGNORE_INDEX)이 아닌 부분만 1로 표시
+        mask = (labels != -100).float().unsqueeze(-1) # [batch, seq_len, 1]
+        current_mask_sum = mask.sum()
+
+        for m in model.modules():
+            if hasattr(m, "_last_mu") and m._last_mu is not None:
+                # mu, logvar: [batch*2, seq_len, rank] -> 첫 절반(배치 사이즈만큼)만 사용
+                mu = m._last_mu.chunk(2)[0]
+                logvar = m._last_logvar.chunk(2)[0]
+                
+                # 🔥 응답 토큰이 있는 경우에만 VIB 계산 (0으로 튀는 현상 방지)
+                if current_mask_sum > 0:
+                    # 차원 정규화를 위한 총 요소 수 계산
+                    num_elements = current_mask_sum * mu.size(-1) + 1e-8
+                    
+                    # KL Divergence 요소별 계산: -0.5 * (1 + logvar - mu^2 - exp(logvar))
+                    kl_elementwise = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
+                    
+                    # 마스킹 적용 후 평균값 산출 및 리스트 저장 (RuntimeError 해결)
+                    kl_divs.append((kl_elementwise * mask).sum() / num_elements)
+                    mu2_vals.append((mu.pow(2) * mask).sum() / num_elements)
+                    logvar_vals.append((logvar * mask).sum() / num_elements)
+                    sigma2_vals.append((logvar.exp() * mask).sum() / num_elements)
+                
+                # 메모리 관리를 위해 속성 초기화
+                m._last_mu, m._last_logvar = None, None
+
+            if hasattr(m, "_latent_stability") and m._latent_stability is not None:
+                latent_stabs.append(m._latent_stability)
+                m._latent_stability = None
+
+        # 4. 최종 손실 결합 및 가중치 적용
+        vib_loss = torch.stack(kl_divs).mean() if kl_divs else torch.tensor(0.0).to(ce_loss.device)
+        latent_stab_loss = torch.stack(latent_stabs).mean() if latent_stabs else torch.tensor(0.0).to(ce_loss.device)
+
+        w_const = self.lambda_stab * const_loss
+        w_vib = self.lambda_vib * vib_loss
+        w_latent = self.lambda_latent_stability * latent_stab_loss
+
+        loss = ce_loss + w_const + w_vib + w_latent
         
-        if self.state.global_step % self.args.logging_steps == 0:
-            self.loss_track["ce_loss"] = ce_loss.detach().item()
-            self.loss_track["const_loss"] = const_loss.detach().item()
-            self.loss_track["vib_loss"] = vib_loss.detach().item()
-            
+        # 5. WandB 로그용 데이터 저장
+        self.loss_track["ce_loss"] = ce_loss.item()
+        self.loss_track["weighted_const_loss"] = w_const.item()
+        self.loss_track["weighted_vib_loss"] = w_vib.item()
+        self.loss_track["weighted_latent_stab_loss"] = w_latent.item()
+        
+        if kl_divs:
+            self.loss_track["vib_mu2"] = torch.stack(mu2_vals).mean().item()
+            self.loss_track["vib_logvar"] = torch.stack(logvar_vals).mean().item()
+            self.loss_track["vib_sigma2"] = torch.stack(sigma2_vals).mean().item()
+
         return (loss, outputs) if return_outputs else loss
-        
+
     def log(self, logs: Dict[str, float]) -> None:
         logs["train/ce_loss"] = self.loss_track["ce_loss"]
-        logs["train/const_loss"] = self.loss_track["const_loss"]
-        logs["train/vib_loss"] = self.loss_track["vib_loss"]
+        logs["train/const_weighted"] = self.loss_track["weighted_const_loss"]
+        logs["train/vib_weighted"] = self.loss_track["weighted_vib_loss"]
+        logs["train/latent_stab_weighted"] = self.loss_track["weighted_latent_stab_loss"]
+        
+        # 🔥 VIB 성분 로그 추가
+        logs["train/vib_mu2"] = self.loss_track["vib_mu2"]
+        logs["train/vib_logvar"] = self.loss_track["vib_logvar"]
+        logs["train/vib_sigma2"] = self.loss_track["vib_sigma2"]
+        
         super().log(logs)
+
+
 
 class SavePeftModelCallback(transformers.TrainerCallback):
     def __init__(self, tokenizer):
@@ -209,23 +278,41 @@ def build_model(script_args, checkpoint_dir):
         if q_config is not None:
             model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=script_args.gradient_checkpointing)
 
+                    
         if checkpoint_dir is not None:
             model = PeftModel.from_pretrained(model, checkpoint_dir, is_trainable=True)
         elif script_args.init_weights.lower() == "lava":
             from peft.tuners.lava.config import LavaConfig
+            
+
+            # 🔥 최적 Alpha 계산 로직 (r=8, alpha=4 기준)
+            # 사용자가 --lora_alpha를 명시적으로 주지 않았거나 기본값(32)인 경우 자동 계산
+            if script_args.lora_alpha == 32.0: # TrainingArguments 기본값이 32.0임
+                final_alpha = 4 * math.sqrt(script_args.lora_rank / 8)
+                if script_args.local_rank == 0:
+                    print(f"[*] LAVA Optimal Alpha calculated: {final_alpha:.2f} for r={script_args.lora_rank}")
+            else:
+                final_alpha = script_args.lora_alpha
+
             peft_config = LavaConfig(
                 r=script_args.lora_rank,
+                alpha=final_alpha, # 계산된 alpha 주입
                 target_modules=script_args.target_modules.split(","),
                 task_type=TaskType.CAUSAL_LM,
+                is_nlg = True
             )
             model = get_peft_model(model, peft_config)
             
-            # 🔥 어댑터 정밀도 강제 설정 (adapter_dtype)
+            # 어댑터 정밀도 설정
             target_a_dtype = dtype_map.get(a_type_str, torch.float32)
             for name, param in model.named_parameters():
-                if 'lava' in name.lower() or 'lora' in name.lower():
+                if 'lava' in name.lower():
                     param.data = param.data.to(target_a_dtype)
                     param.requires_grad = True
+                    
+                    
+                    
+                    
         else:
             peft_config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
@@ -284,77 +371,92 @@ class DataCollatorForSupervisedDataset(object):
         input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=self.tokenizer.pad_token_id)
         labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
         return dict(input_ids=input_ids, labels=labels, attention_mask=input_ids.ne(self.tokenizer.pad_token_id))
+    
+    
+    
+
 
 def train():
     set_seed(42)
     parser = transformers.HfArgumentParser(TrainingArguments)
     script_args = parser.parse_args_into_dataclasses()[0]
     
-    # ---------------------------------------------------------
-    # 🔥 1. 체크포인트 경로 설정 (DType 정보 포함)
-    # ---------------------------------------------------------
+    # 1. 최적 Alpha 및 식별자 생성
+    if script_args.init_weights.lower() == "lava":
+        if script_args.lora_alpha == 32.0 or script_args.lora_alpha is None:
+            final_alpha = 4 * math.sqrt(script_args.lora_rank / 8)
+        else:
+            final_alpha = script_args.lora_alpha
+    else:
+        final_alpha = script_args.lora_alpha
+
     clean_model_name = script_args.model_name_or_path.split("/")[-1]
-    dataset_name = script_args.sub_task[0].split(":")[0] if script_args.sub_task else "unknown"
-    
     setting_str = (
-        f"M-{clean_model_name}_"
-        f"A-{script_args.init_weights}_"
-        f"B-{script_args.base_dtype}_"
-        f"AD-{script_args.adapter_dtype}_"
-        f"R-{script_args.lora_rank}_"
-        f"VIB-{script_args.lambda_vib}_"
-        f"S-{script_args.seed}"
+        f"{script_args.init_weights}_"
+        f"{clean_model_name}_r{script_args.lora_rank}_a{final_alpha:.1f}_"
+        f"vb{script_args.lambda_vib}_st{script_args.lambda_stab}_ls{script_args.lambda_latent_stability}_"
+        f"bd-{script_args.base_dtype}_s{script_args.seed}"
     )
+
     script_args.output_dir = os.path.join(script_args.output_dir, setting_str)
-    script_args.run_name = setting_str
-    
-    # DeepSpeed용 bf16 플래그 자동 설정
+    script_args.run_name = setting_str 
+
     if script_args.base_dtype == "bf16":
         script_args.bf16 = True
 
-    if script_args.local_rank == 0:
-        print(f"🚀 Training starting. Output directory: {script_args.output_dir}")
-
-    # ---------------------------------------------------------
-    # 2. 모델 및 데이터 로드
-    # ---------------------------------------------------------
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        script_args.model_name_or_path, 
-        model_max_length=script_args.model_max_length, 
-        padding_side="right", 
-        use_fast=True
-    )
+    # 2. 모델 로드
+    tokenizer = transformers.AutoTokenizer.from_pretrained(script_args.model_name_or_path, model_max_length=script_args.model_max_length, padding_side="right", use_fast=True)
     if tokenizer.pad_token is None: tokenizer.pad_token = tokenizer.eos_token
 
     resume_from_checkpoint_dir = get_last_checkpoint(script_args.output_dir)
     model = build_model(script_args, resume_from_checkpoint_dir)
 
+    # 🔥 3. WandB 초기화 및 파라미터 통계 기록
+    if script_args.local_rank == 0:
+        print(f"🚀 Training starting. Output directory: {script_args.output_dir}")
+        
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        all_params = sum(p.numel() for p in model.parameters())
+        trainable_percentage = 100 * trainable_params / all_params
+
+        wandb.init(
+            project=os.environ.get("WANDB_PROJECT", "NLG-test"),
+            name=script_args.run_name,
+            config=vars(script_args)
+        )
+        wandb.run.summary["trainable_params"] = trainable_params
+        wandb.run.summary["all_params"] = all_params
+        wandb.run.summary["trainable_percentage"] = trainable_percentage
+
+    # 4. 데이터 로드 및 Trainer 실행
     all_ds = []
     for task in script_args.sub_task:
-        task_name, split_info = task.split(":") if ":" in task else (task, script_args.dataset_split)
-        current_split = f"{script_args.dataset_split}[:{split_info}]" if ":" in task else split_info
-        all_ds.append(load_dataset(script_args.data_path, data_dir=task_name, split=current_split))
+        # ... (데이터 로드 로직 동일)
+        all_ds.append(load_dataset(script_args.data_path, data_dir=task.split(":")[0], split=f"train[:{task.split(':')[1]}]" if ":" in task else "train"))
     
-    train_dataset = concatenate_datasets(all_ds).map(
-        train_tokenize_function,
-        batched=True,
-        remove_columns=all_ds[0].column_names,
-        fn_kwargs={"tokenizer": tokenizer, "query": script_args.dataset_field[0], "response": script_args.dataset_field[1]}
-    )
-
+    train_dataset = concatenate_datasets(all_ds).map(train_tokenize_function, batched=True, remove_columns=all_ds[0].column_names, fn_kwargs={"tokenizer": tokenizer, "query": script_args.dataset_field[0], "response": script_args.dataset_field[1]})
     data_module = dict(train_dataset=train_dataset, data_collator=DataCollatorForSupervisedDataset(tokenizer))
 
-    # ---------------------------------------------------------
-    # 3. Trainer 실행
-    # ---------------------------------------------------------
-    trainer = StabilityLavaTrainer(
-        model=model, 
-        tokenizer=tokenizer, 
-        args=script_args, 
-        lambda_vib=script_args.lambda_vib, 
-        lambda_stab=script_args.lambda_stab, 
-        **data_module
-    )
+    # train.py 파일의 약 434라인 근처 수정
+    if script_args.init_weights.lower() == "lava":
+        # LAVA 전용: 배치 2배 연산 및 VIB/Stability 계산 포함
+        trainer = StabilityLavaTrainer(
+            model=model, 
+            tokenizer=tokenizer, 
+            args=script_args, 
+            lambda_vib=script_args.lambda_vib, 
+            lambda_stab=script_args.lambda_stab, 
+            lambda_latent_stability=script_args.lambda_latent_stability,
+            **data_module
+        )
+    else:
+        # LoRA / PiSSA 전용: 표준 Trainer 사용 (연산 효율적)
+        trainer = Trainer(
+            model=model, 
+            tokenizer=tokenizer, 
+            args=script_args, 
+            **data_module
+        )
     
     if not script_args.full_finetune:
         trainer.add_callback(SavePeftModelCallback(tokenizer))
@@ -362,9 +464,8 @@ def train():
     trainer.train(resume_from_checkpoint=resume_from_checkpoint_dir)
     trainer.save_state()
     
-    if not script_args.full_finetune and script_args.merge:
-        model = model.merge_and_unload()
-        model.save_pretrained(script_args.output_dir)
+    if script_args.local_rank == 0:
+        wandb.finish()
 
 if __name__ == "__main__":
     train()

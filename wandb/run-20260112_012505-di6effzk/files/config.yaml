@@ -1,0 +1,69 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            war83kufsrcwfojw92enxcepsctttyrz:
+                args:
+                    - --base_model
+                    - meta-llama/Llama-2-7b-hf
+                    - --adapter_path
+                    - /home/dongwoo38/PiSSA/output/metamath-LAVA-r128-a16-B_int4-vib1.0-seed42/lava_Llama-2-7b-hf_r128_a16.0_vb1.0_st0.1_ls1.0_bd-int4_s42/checkpoint-781/adapter_model
+                    - --dataset
+                    - both
+                    - --num_samples
+                    - "1000"
+                    - --wandb_project
+                    - MT-Math-Eval
+                codePath: evaluate_math.py
+                codePathLocal: evaluate_math.py
+                cpu_count: 24
+                cpu_count_logical: 48
+                disk:
+                    /:
+                        total: "1966736678912"
+                        used: "1412293607424"
+                email: yein0330@sogang.ac.kr
+                executable: /home/dongwoo38/miniconda3/envs/pissa/bin/python
+                git:
+                    commit: 4b4102dd787cd43bc1ec79fa604da20e8bec6b4f
+                    remote: https://github.com/merrybabyxmas/lava2.git
+                host: user-WRX80-Creator
+                memory:
+                    total: "134894321664"
+                os: Linux-6.14.0-37-generic-x86_64-with-glibc2.39
+                program: /home/dongwoo38/PiSSA/evaluate_math.py
+                python: CPython 3.10.19
+                root: /home/dongwoo38/PiSSA
+                startedAt: "2026-01-11T16:25:05.526678Z"
+                writerId: war83kufsrcwfojw92enxcepsctttyrz
+        m: []
+        python_version: 3.10.19
+        t:
+            "1":
+                - 1
+                - 11
+                - 49
+                - 51
+                - 71
+                - 98
+                - 105
+            "2":
+                - 1
+                - 11
+                - 49
+                - 51
+                - 71
+                - 98
+                - 105
+            "3":
+                - 13
+                - 16
+            "4": 3.10.19
+            "5": 0.23.1
+            "6": 4.45.1
+            "12": 0.23.1
+            "13": linux-x86_64
+adapter_path:
+    value: /home/dongwoo38/PiSSA/output/metamath-LAVA-r128-a16-B_int4-vib1.0-seed42/lava_Llama-2-7b-hf_r128_a16.0_vb1.0_st0.1_ls1.0_bd-int4_s42/checkpoint-781/adapter_model
+base_model:
+    value: meta-llama/Llama-2-7b-hf

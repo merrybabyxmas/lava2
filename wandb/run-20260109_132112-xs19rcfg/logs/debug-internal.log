@@ -1,0 +1,6 @@
+{"time":"2026-01-09T13:21:12.774392682+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-09T13:21:13.134898904+09:00","level":"INFO","msg":"stream: created new stream","id":"xs19rcfg"}
+{"time":"2026-01-09T13:21:13.134977955+09:00","level":"INFO","msg":"handler: started","stream_id":"xs19rcfg"}
+{"time":"2026-01-09T13:21:13.135083547+09:00","level":"INFO","msg":"stream: started","id":"xs19rcfg"}
+{"time":"2026-01-09T13:21:13.135107838+09:00","level":"INFO","msg":"writer: started","stream_id":"xs19rcfg"}
+{"time":"2026-01-09T13:21:13.135127798+09:00","level":"INFO","msg":"sender: started","stream_id":"xs19rcfg"}

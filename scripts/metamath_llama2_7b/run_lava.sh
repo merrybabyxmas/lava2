@@ -4,25 +4,31 @@
 PROJECT_ROOT="/home/dongwoo38/PiSSA"
 cd $PROJECT_ROOT
 
-BASE_MODEL="meta-llama/Llama-2-7b-hf"
+BASE_MODEL="mistralai/Mistral-7B-v0.1"
 DATA_PATH="fxmeng/pissa-dataset"
 SEED=42
 
 # 2. LAVA 하이퍼파라미터 및 DType 설정
-LAMBDA_VIB=0.05
+LAMBDA_VIB=1.0
 LAMBDA_STAB=0.1
 RANK=128
+ALPHA=16
+# r=8, alpha=4 기준 최적 Bound인 16 설정 (혹은 비워두어 자동계산 유도)
 
-# 모델 및 어댑터 정밀도 설정 (선택: fp32, bf16, fp16, int4, int8)
-BASE_DTYPE="int4"    # 베이스 모델 dtype
-ADAPTER_DTYPE="fp32" # 어댑터 모델 dtype
+BASE_DTYPE="int4"
+ADAPTER_DTYPE="fp32"
 
-# 3. 출력 경로 (설정값이 한눈에 보이도록 폴더명 구성)
-OUTPUT_PATH="output/metamath-LAVA-r${RANK}-B_${BASE_DTYPE}-A_${ADAPTER_DTYPE}-vib${LAMBDA_VIB}-seed${SEED}"
+# 3. 출력 경로 및 WandB 이름에 Alpha 추가
+# 이름 예시: LAVA_Llama2_7B_r128_a16_B-int4_vib0.0005
+WANDB_NAME="[MATH]LAVA_mistral_7B_r${RANK}_a${ALPHA}_B-${BASE_DTYPE}_A-${ADAPTER_DTYPE}_vib${LAMBDA_VIB}_seed${SEED}"
+OUTPUT_PATH="output/metamath-LAVA-mistral-r${RANK}-a${ALPHA}-B_${BASE_DTYPE}-vib${LAMBDA_VIB}-seed${SEED}"
 
-# 4. 환경 변수 설정
-export WANDB_PROJECT=NLG-metamath-final
-export WANDB_NAME="LAVA_Llama2_7B_r${RANK}_B-${BASE_DTYPE}_A-${ADAPTER_DTYPE}_vib${LAMBDA_VIB}_seed${SEED}"
+export WANDB_PROJECT=NLG-layernorm-test
+export WANDB_NAME=$WANDB_NAME
+
+export CUDA_VISIBLE_DEVICES=0
+export NCCL_P2P_DISABLE=1  # P2P 통신 에러 방지 (Unknown Error 해결에 효과적)
+
 
 # 분산 학습 및 CUDA 이슈 방지 설정
 export NCCL_DEBUG=WARN
@@ -54,7 +60,7 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:2 train.py \
   --adapter_dtype $ADAPTER_DTYPE \
   --init_weights lava \
   --lora_rank $RANK \
-  --lora_alpha 128 \
+  --lora_alpha $ALPHA \
   --lora_dropout 0 \
   --target_modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj \
   --data_path $DATA_PATH \
@@ -64,10 +70,10 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:2 train.py \
   --output_dir $OUTPUT_PATH \
   --num_train_epochs 1 \
   --model_max_length 512 \
-  --per_device_train_batch_size 2 \
+  --per_device_train_batch_size 4 \
   --gradient_checkpointing True \
-  --gradient_accumulation_steps 8 \
-  --learning_rate 2e-5 \
+  --gradient_accumulation_steps 32 \
+  --learning_rate 1e-4 \
   --warmup_ratio 0.03 \
   --lr_scheduler_type cosine \
   --logging_steps 10 \
@@ -78,4 +84,5 @@ deepspeed --master_port=$MASTER_PORT --include=localhost:2 train.py \
   --optim adamw_torch \
   --merge False \
   --lambda_vib $LAMBDA_VIB \
-  --lambda_stab $LAMBDA_STAB
+  --lambda_stab $LAMBDA_STAB \
+  --lambda_latent_stability 1.0

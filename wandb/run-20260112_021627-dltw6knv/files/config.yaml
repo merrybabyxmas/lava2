@@ -1,0 +1,474 @@
+__cached__setup_devices:
+    value: cuda:0
+_n_gpu:
+    value: 1
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            x54l2l8kw08ojzv4ihgl951y0lpbdto3:
+                args:
+                    - --local_rank=0
+                    - --deepspeed
+                    - configs/ds_config_zero2_no_offload.json
+                    - --full_finetune
+                    - "False"
+                    - --model_name_or_path
+                    - mistralai/Mistral-7B-v0.1
+                    - --seed
+                    - "42"
+                    - --data_seed
+                    - "42"
+                    - --base_dtype
+                    - int4
+                    - --adapter_dtype
+                    - fp32
+                    - --init_weights
+                    - lava
+                    - --lora_rank
+                    - "128"
+                    - --lora_alpha
+                    - "16"
+                    - --lora_dropout
+                    - "0"
+                    - --target_modules
+                    - q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+                    - --data_path
+                    - fxmeng/pissa-dataset
+                    - --sub_task
+                    - metamath:100000
+                    - --dataset_split
+                    - train
+                    - --dataset_field
+                    - instruction
+                    - output
+                    - --output_dir
+                    - output/metamath-LAVA-mistral-r128-a16-B_int4-vib1.0-seed42
+                    - --num_train_epochs
+                    - "1"
+                    - --model_max_length
+                    - "512"
+                    - --per_device_train_batch_size
+                    - "4"
+                    - --gradient_checkpointing
+                    - "True"
+                    - --gradient_accumulation_steps
+                    - "32"
+                    - --learning_rate
+                    - "1e-4"
+                    - --warmup_ratio
+                    - "0.03"
+                    - --lr_scheduler_type
+                    - cosine
+                    - --logging_steps
+                    - "10"
+                    - --save_strategy
+                    - steps
+                    - --save_steps
+                    - "1000"
+                    - --save_total_limit
+                    - "1"
+                    - --report_to
+                    - wandb
+                    - --optim
+                    - adamw_torch
+                    - --merge
+                    - "False"
+                    - --lambda_vib
+                    - "1.0"
+                    - --lambda_stab
+                    - "0.1"
+                    - --lambda_latent_stability
+                    - "1.0"
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 24
+                cpu_count_logical: 48
+                disk:
+                    /:
+                        total: "1966736678912"
+                        used: "1427135799296"
+                email: yein0330@sogang.ac.kr
+                executable: /home/dongwoo38/miniconda3/envs/pissa/bin/python3.10
+                git:
+                    commit: 4b4102dd787cd43bc1ec79fa604da20e8bec6b4f
+                    remote: https://github.com/merrybabyxmas/lava2.git
+                host: user-WRX80-Creator
+                memory:
+                    total: "134894321664"
+                os: Linux-6.14.0-37-generic-x86_64-with-glibc2.39
+                program: /home/dongwoo38/PiSSA/train.py
+                python: CPython 3.10.19
+                root: /home/dongwoo38/PiSSA
+                startedAt: "2026-01-11T17:16:27.806646Z"
+                writerId: x54l2l8kw08ojzv4ihgl951y0lpbdto3
+        m: []
+        python_version: 3.10.19
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 51
+                - 53
+                - 71
+                - 98
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 51
+                - 53
+                - 71
+                - 98
+                - 105
+            "3":
+                - 13
+                - 16
+                - 62
+            "4": 3.10.19
+            "5": 0.23.1
+            "6": 4.45.1
+            "12": 0.23.1
+            "13": linux-x86_64
+accelerator_config:
+    value:
+        dispatch_batches: null
+        even_batches: true
+        gradient_accumulation_kwargs: null
+        non_blocking: false
+        split_batches: false
+        use_configured_state: false
+        use_seedable_sampler: true
+adafactor:
+    value: false
+adam_beta1:
+    value: 0.9
+adam_beta2:
+    value: 0.999
+adam_epsilon:
+    value: 1e-08
+adapter_dtype:
+    value: fp32
+adapter_name_or_path:
+    value: null
+attn_implementation:
+    value: flash_attention_2
+auto_find_batch_size:
+    value: false
+base_dtype:
+    value: int4
+batch_eval_metrics:
+    value: false
+bf16:
+    value: false
+bf16_full_eval:
+    value: false
+bits:
+    value: 16
+data_path:
+    value: fxmeng/pissa-dataset
+data_seed:
+    value: 42
+dataloader_drop_last:
+    value: false
+dataloader_num_workers:
+    value: 0
+dataloader_persistent_workers:
+    value: false
+dataloader_pin_memory:
+    value: true
+dataloader_prefetch_factor:
+    value: null
+dataset_field:
+    value:
+        - instruction
+        - output
+dataset_split:
+    value: train
+ddp_backend:
+    value: null
+ddp_broadcast_buffers:
+    value: null
+ddp_bucket_cap_mb:
+    value: null
+ddp_find_unused_parameters:
+    value: null
+ddp_timeout:
+    value: 1800
+debug:
+    value: []
+deepspeed:
+    value: configs/ds_config_zero2_no_offload.json
+deepspeed_plugin:
+    value:
+        enable_msamp: false
+        gradient_accumulation_steps: 32
+        gradient_clipping: 1
+        hf_ds_config: <transformers.integrations.deepspeed.HfTrainerDeepSpeedConfig object at 0x7a4e74489480>
+        is_train_batch_min: true
+        msamp_opt_level: O1
+        offload_optimizer_device: none
+        offload_optimizer_nvme_path: none
+        offload_param_device: none
+        offload_param_nvme_path: none
+        transformer_moe_cls_names: null
+        zero_stage: 2
+        zero3_init_flag: false
+        zero3_save_16bit_model: false
+disable_tqdm:
+    value: false
+dispatch_batches:
+    value: null
+distributed_state:
+    value: |
+        Distributed environment: DEEPSPEED  Backend: nccl
+        Num processes: 1
+        Process index: 0
+        Local process index: 0
+        Device: cuda:0
+do_eval:
+    value: false
+do_predict:
+    value: false
+do_train:
+    value: false
+eval_accumulation_steps:
+    value: null
+eval_delay:
+    value: 0
+eval_do_concat_batches:
+    value: true
+eval_on_start:
+    value: false
+eval_steps:
+    value: null
+eval_strategy:
+    value: "NO"
+eval_use_gather_object:
+    value: false
+evaluation_strategy:
+    value: null
+fp16:
+    value: false
+fp16_backend:
+    value: auto
+fp16_full_eval:
+    value: false
+fp16_opt_level:
+    value: O1
+fsdp:
+    value: []
+fsdp_config:
+    value:
+        min_num_params: 0
+        xla: false
+        xla_fsdp_grad_ckpt: false
+        xla_fsdp_v2: false
+fsdp_min_num_params:
+    value: 0
+fsdp_transformer_layer_cls_to_wrap:
+    value: null
+full_determinism:
+    value: false
+full_finetune:
+    value: false
+gradient_accumulation_steps:
+    value: 32
+gradient_checkpointing:
+    value: true
+gradient_checkpointing_kwargs:
+    value: null
+greater_is_better:
+    value: null
+group_by_length:
+    value: false
+half_precision_backend:
+    value: auto
+hf_deepspeed_config:
+    value: <transformers.integrations.deepspeed.HfTrainerDeepSpeedConfig object at 0x7a4ec5238bb0>
+hub_always_push:
+    value: false
+hub_model_id:
+    value: null
+hub_private_repo:
+    value: false
+hub_strategy:
+    value: EVERY_SAVE
+hub_token:
+    value: null
+ignore_data_skip:
+    value: false
+include_inputs_for_metrics:
+    value: false
+include_num_input_tokens_seen:
+    value: false
+include_tokens_per_second:
+    value: false
+init_weights:
+    value: lava
+jit_mode_eval:
+    value: false
+label_names:
+    value: null
+label_smoothing_factor:
+    value: 0
+lambda_latent_stability:
+    value: 1
+lambda_stab:
+    value: 0.1
+lambda_vib:
+    value: 1
+learning_rate:
+    value: 0.0001
+length_column_name:
+    value: length
+load_best_model_at_end:
+    value: false
+local_rank:
+    value: 0
+log_level:
+    value: passive
+log_level_replica:
+    value: warning
+log_on_each_node:
+    value: true
+logging_dir:
+    value: output/metamath-LAVA-mistral-r128-a16-B_int4-vib1.0-seed42/runs/Jan12_02-16-18_user-WRX80-Creator
+logging_first_step:
+    value: false
+logging_nan_inf_filter:
+    value: true
+logging_steps:
+    value: 10
+logging_strategy:
+    value: STEPS
+lora_alpha:
+    value: 16
+lora_dropout:
+    value: 0
+lora_rank:
+    value: 128
+lr_scheduler_type:
+    value: COSINE
+max_grad_norm:
+    value: 1
+max_steps:
+    value: -1
+merge:
+    value: false
+metric_for_best_model:
+    value: null
+model_max_length:
+    value: 512
+model_name_or_path:
+    value: mistralai/Mistral-7B-v0.1
+mp_parameters:
+    value: ""
+neftune_noise_alpha:
+    value: null
+no_cuda:
+    value: false
+num_train_epochs:
+    value: 1
+optim:
+    value: ADAMW_TORCH
+optim_args:
+    value: null
+optim_target_modules:
+    value: null
+output_dir:
+    value: output/metamath-LAVA-mistral-r128-a16-B_int4-vib1.0-seed42/lava_Mistral-7B-v0.1_r128_a16.0_vb1.0_st0.1_ls1.0_bd-int4_s42
+overwrite_output_dir:
+    value: false
+past_index:
+    value: -1
+per_device_eval_batch_size:
+    value: 8
+per_device_train_batch_size:
+    value: 4
+per_gpu_eval_batch_size:
+    value: null
+per_gpu_train_batch_size:
+    value: null
+prediction_loss_only:
+    value: false
+push_to_hub:
+    value: false
+push_to_hub_model_id:
+    value: null
+push_to_hub_organization:
+    value: null
+push_to_hub_token:
+    value: null
+ray_scope:
+    value: last
+remove_unused_columns:
+    value: true
+report_to:
+    value:
+        - wandb
+restore_callback_states_from_checkpoint:
+    value: false
+resume_from_checkpoint:
+    value: null
+run_name:
+    value: lava_Mistral-7B-v0.1_r128_a16.0_vb1.0_st0.1_ls1.0_bd-int4_s42
+save_on_each_node:
+    value: false
+save_only_model:
+    value: false
+save_safetensors:
+    value: true
+save_steps:
+    value: 1000
+save_strategy:
+    value: STEPS
+save_total_limit:
+    value: 1
+seed:
+    value: 42
+skip_memory_metrics:
+    value: true
+split_batches:
+    value: null
+sub_task:
+    value:
+        - metamath:100000
+target_modules:
+    value: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+tf32:
+    value: null
+torch_compile:
+    value: false
+torch_compile_backend:
+    value: null
+torch_compile_mode:
+    value: null
+torch_empty_cache_steps:
+    value: null
+torchdynamo:
+    value: null
+tpu_metrics_debug:
+    value: false
+tpu_num_cores:
+    value: null
+use_cpu:
+    value: false
+use_ipex:
+    value: false
+use_legacy_prediction_loop:
+    value: false
+use_liger_kernel:
+    value: false
+use_mps_device:
+    value: false
+warmup_ratio:
+    value: 0.03
+warmup_steps:
+    value: 0
+weight_decay:
+    value: 0

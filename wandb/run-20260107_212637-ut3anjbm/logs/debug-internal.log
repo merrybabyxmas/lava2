@@ -1,0 +1,14 @@
+{"time":"2026-01-07T21:26:37.84912952+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-07T21:26:38.220142885+09:00","level":"INFO","msg":"stream: created new stream","id":"ut3anjbm"}
+{"time":"2026-01-07T21:26:38.220221777+09:00","level":"INFO","msg":"handler: started","stream_id":"ut3anjbm"}
+{"time":"2026-01-07T21:26:38.22033639+09:00","level":"INFO","msg":"stream: started","id":"ut3anjbm"}
+{"time":"2026-01-07T21:26:38.220365761+09:00","level":"INFO","msg":"writer: started","stream_id":"ut3anjbm"}
+{"time":"2026-01-07T21:26:38.220388902+09:00","level":"INFO","msg":"sender: started","stream_id":"ut3anjbm"}
+{"time":"2026-01-08T04:09:09.163260309+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-conversation-ver3/ut3anjbm/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-08T07:23:39.036781353+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-conversation-ver3/ut3anjbm/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-08T08:03:09.028061766+09:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/DongwooYein/NLG-conversation-ver3/ut3anjbm/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-08T12:42:00.040756671+09:00","level":"INFO","msg":"stream: closing","id":"ut3anjbm"}
+{"time":"2026-01-08T12:42:01.662805324+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-08T12:42:02.01827947+09:00","level":"INFO","msg":"handler: closed","stream_id":"ut3anjbm"}
+{"time":"2026-01-08T12:42:02.018365013+09:00","level":"INFO","msg":"sender: closed","stream_id":"ut3anjbm"}
+{"time":"2026-01-08T12:42:02.018382043+09:00","level":"INFO","msg":"stream: closed","id":"ut3anjbm"}

@@ -1,0 +1,40 @@
+{
+  "os":  "Linux-6.14.0-37-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.10.19",
+  "startedAt":  "2026-01-11T16:26:42.527580Z",
+  "args":  [
+    "--base_model",
+    "meta-llama/Llama-2-7b-hf",
+    "--adapter_path",
+    "/home/dongwoo38/PiSSA/output/metamath-LAVA-r128-a16-B_int4-vib1.0-seed42/lava_Llama-2-7b-hf_r128_a16.0_vb1.0_st0.1_ls1.0_bd-int4_s42/checkpoint-781/adapter_model",
+    "--dataset",
+    "both",
+    "--num_samples",
+    "1000",
+    "--wandb_project",
+    "MT-Math-Eval"
+  ],
+  "program":  "/home/dongwoo38/PiSSA/evaluate_math.py",
+  "codePath":  "evaluate_math.py",
+  "codePathLocal":  "evaluate_math.py",
+  "git":  {
+    "remote":  "https://github.com/merrybabyxmas/lava2.git",
+    "commit":  "4b4102dd787cd43bc1ec79fa604da20e8bec6b4f"
+  },
+  "email":  "yein0330@sogang.ac.kr",
+  "root":  "/home/dongwoo38/PiSSA",
+  "host":  "user-WRX80-Creator",
+  "executable":  "/home/dongwoo38/miniconda3/envs/pissa/bin/python",
+  "cpu_count":  24,
+  "cpu_count_logical":  48,
+  "disk":  {
+    "/":  {
+      "total":  "1966736678912",
+      "used":  "1412293926912"
+    }
+  },
+  "memory":  {
+    "total":  "134894321664"
+  },
+  "writerId":  "uxy8i6gvc28lgjwrkid5u2rwo0p2mtzt"
+}

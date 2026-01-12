@@ -1,0 +1,11 @@
+{"time":"2026-01-11T00:30:25.795414719+09:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-11T00:30:26.15642214+09:00","level":"INFO","msg":"stream: created new stream","id":"myox4lvw"}
+{"time":"2026-01-11T00:30:26.156793154+09:00","level":"INFO","msg":"handler: started","stream_id":"myox4lvw"}
+{"time":"2026-01-11T00:30:26.156883215+09:00","level":"INFO","msg":"stream: started","id":"myox4lvw"}
+{"time":"2026-01-11T00:30:26.156898945+09:00","level":"INFO","msg":"writer: started","stream_id":"myox4lvw"}
+{"time":"2026-01-11T00:30:26.156906906+09:00","level":"INFO","msg":"sender: started","stream_id":"myox4lvw"}
+{"time":"2026-01-11T00:30:32.696972138+09:00","level":"INFO","msg":"stream: closing","id":"myox4lvw"}
+{"time":"2026-01-11T00:30:33.471526707+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-11T00:30:33.763026264+09:00","level":"INFO","msg":"handler: closed","stream_id":"myox4lvw"}
+{"time":"2026-01-11T00:30:33.763130495+09:00","level":"INFO","msg":"sender: closed","stream_id":"myox4lvw"}
+{"time":"2026-01-11T00:30:33.763139905+09:00","level":"INFO","msg":"stream: closed","id":"myox4lvw"}

@@ -6,21 +6,16 @@ from transformers import (
     AutoModelForSequenceClassification,
     TrainingArguments,
     Trainer,
+    TrainerCallback
 )
+import math
 import random
 import numpy as np
 from evaluate import load as load_metric
 import wandb
-
-from peft import get_peft_model, LoraConfig
+import os
+from peft import get_peft_model, LoraConfig, AdaLoraConfig 
 from peft.tuners.lava.config import LavaConfig
-# from peft.tuners.moca import MoCAConfig
-# from peft.tuners.pissa import PiSSAConfig
-# from peft.tuners.dora import DoRAConfig
-
-
-
-
 
 from configs.task_config import (
     GLUE_META,
@@ -29,140 +24,273 @@ from configs.task_config import (
     LORA_TASK_CONFIG,
     MOCA_TASK_CONFIG,
     LAVA_TASK_CONFIG,
+    BITFIT_TASK_CONFIG,
+    ADALORA_TASK_CONFIG,
 )
+
+import torch.nn.functional as F
+
+from typing import Dict
+
+
+
+import peft.utils.save_and_load
+import peft.mapping
+from peft.utils.peft_types import PeftType
+from peft.tuners.lava.config import LavaConfig
+from peft.tuners.lava.model import LavaModel
+
+# 1. PeftType 에 LAVA 열거형 추가
+if not hasattr(PeftType, "LAVA"):
+    PeftType.LAVA = "LAVA"
+
+# 2. PEFT 내부 매핑 테이블에 LAVA 등록
+# 이 과정이 없으면 get_peft_model이 'LAVA' 키를 찾지 못해 KeyError가 발생합니다.
+for lava_key in ["LAVA", PeftType.LAVA]:
+    peft.mapping.PEFT_TYPE_TO_CONFIG_MAPPING[lava_key] = LavaConfig
+    peft.mapping.PEFT_TYPE_TO_TUNER_MAPPING[lava_key] = LavaModel
+    
+    # 저장 및 로드를 위한 프리픽스 설정
+    peft.utils.save_and_load.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
+    peft.mapping.PEFT_TYPE_TO_PREFIX_MAPPING[lava_key] = "adapter_model"
+
+print("✅ LAVA 시스템이 PEFT 매핑에 성공적으로 등록되었습니다.")
 
 
 # ----------------------------------------------------------
-# SEED SETUP
+# SEED SETUP (UNCHANGED)
 # ----------------------------------------------------------
 def setup_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 
+def print_trainable_parameters(model):
+    """
+    모델의 전체 파라미터 대비 학습 가능한 파라미터의 수와 비율을 출력합니다.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        num_params = param.numel()
+        all_param += num_params
+        if param.requires_grad:
+            trainable_params += num_params
+    
+    print(
+        f"trainable params: {trainable_params:,} || all params: {all_param:,} || trainable%: {100 * trainable_params / all_param:.4f}"
+    )
+    
+    
+class BestMetricCallback(TrainerCallback):
+    def __init__(self, main_metric):
+        self.main_metric = f"eval_{main_metric}"
+        self.best_score = -float("inf")
 
+    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
+        if metrics and self.main_metric in metrics:
+            current_score = metrics[self.main_metric]
+            if current_score > self.best_score:
+                self.best_score = current_score
+            # WandB에 현재까지의 Best 점수 기록
+            wandb.log({"eval/best_main": self.best_score}, step=state.global_step)
 
-from transformers import TrainerCallback
-import torch
+# ==========================================================
+# MaxEnt LAVA Trainer (🔥 CLEAN: FIXED LAMBDA, NO CONSTRAINT)
+# ==========================================================
 
-class LavaGradCallback(TrainerCallback):
-    def on_step_end(self, args, state, control, **kwargs):
-        model = kwargs["model"]
-
-        stats = {
-            "grad/W_mu_norm": [],
-            "grad/W_o_norm": [],
-            "grad/b_mu_norm": [],
-            "grad/b_logvar_norm": [],
-            "grad/W_mu_mean": [],
-            "grad/W_o_mean": [],
-            "grad/b_mu_mean": [],
-            "grad/b_logvar_mean": [],
+class StabilityLavaTrainer(Trainer):
+    def __init__(self, *args, lambda_vib=0.1, lambda_stab=0.1, lambda_latent_stability=0.1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lambda_vib = lambda_vib
+        self.lambda_stab = lambda_stab
+        self.lambda_latent_stability = lambda_latent_stability
+        
+        # 모든 키를 미리 초기화하여 KeyError 방지
+        self.loss_track = {
+            "ce_loss": 0,
+            "raw_const_loss": 0,
+            "weighted_const_loss": 0,
+            "raw_vib_loss": 0,
+            "weighted_vib_loss": 0,
+            "raw_latent_stab_loss": 0,
+            "weighted_latent_stab_loss": 0
         }
 
-        for name, p in model.named_parameters():
-            if p.grad is None:
-                continue
+    def compute_loss(self, model, inputs, return_outputs=False):
+        if not model.training:
+            return super().compute_loss(model, inputs, return_outputs)
 
-            g = p.grad.detach()
+        half_size = inputs["input_ids"].size(0) // 2
+        if half_size == 0: 
+            return super().compute_loss(model, inputs, return_outputs)
+        
+        sub_inputs = {k: v[:half_size] for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+        labels = sub_inputs["labels"]
+        concat_inputs = {k: torch.cat([v, v], dim=0) for k, v in sub_inputs.items()}
+        
+        outputs = model(**concat_inputs)
+        logits = outputs.logits 
+        logits1, logits2 = logits.chunk(2, dim=0)
+        
+        # 1. Task Loss
+        if labels.dtype in [torch.float32, torch.float64]:
+            loss_fct = torch.nn.MSELoss()
+            ce_loss = loss_fct(logits.view(-1), torch.cat([labels, labels], dim=0).view(-1))
+        else:
+            ce_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), torch.cat([labels, labels], dim=0).view(-1))
 
-            # LavaAdapter 파라미터만 집계
-            if "lava" not in name:
-                continue
+        # 2. Stability Loss (Logit Consistency)
+        if labels.dtype in [torch.float32, torch.float64]:
+            const_loss = F.mse_loss(logits1, logits2)
+        else:
+            p = F.log_softmax(logits1, dim=-1)
+            q = F.softmax(logits2, dim=-1)
+            p_rev = F.log_softmax(logits2, dim=-1)
+            q_rev = F.softmax(logits1, dim=-1)
+            const_loss = (F.kl_div(p, q, reduction='batchmean') + F.kl_div(p_rev, q_rev, reduction='batchmean')) / 2
 
-            if "W_mu" in name:
-                stats["grad/W_mu_norm"].append(g.norm().item())
-                stats["grad/W_mu_mean"].append(g.abs().mean().item())
+        # 3. VIB & Latent Stability 수집
+        kl_divs = []
+        latent_stabs = []
+        mu2_vals = []
+        logvar_vals = []
+        sigma2_vals = []
 
-            elif "W_o" in name:
-                stats["grad/W_o_norm"].append(g.norm().item())
-                stats["grad/W_o_mean"].append(g.abs().mean().item())
+        for m in model.modules():
+            if hasattr(m, "_last_mu") and m._last_mu is not None:
+                mu, logvar = m._last_mu.chunk(2)[0], m._last_logvar.chunk(2)[0]
+                
+                # KL = -0.5 * (1 + logvar - mu^2 - exp(logvar))
+                # 각 성분별 평균 계산
+                mu2 = mu.pow(2).mean()
+                lv = logvar.mean()
+                s2 = logvar.exp().mean()
+                
+                kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
+                
+                kl_divs.append(kl)
+                mu2_vals.append(mu2)
+                logvar_vals.append(lv)
+                sigma2_vals.append(s2)
+                
+                m._last_mu, m._last_logvar = None, None
 
-            elif "b_mu" in name:
-                stats["grad/b_mu_norm"].append(g.norm().item())
-                stats["grad/b_mu_mean"].append(g.abs().mean().item())
+            if hasattr(m, "_latent_stability") and m._latent_stability is not None:
+                latent_stabs.append(m._latent_stability)
+                m._latent_stability = None
 
-            elif "b_logvar" in name:
-                stats["grad/b_logvar_norm"].append(g.norm().item())
-                stats["grad/b_logvar_mean"].append(g.abs().mean().item())
+        vib_loss = torch.stack(kl_divs).mean() if kl_divs else torch.tensor(0.0).to(ce_loss.device)
+        latent_stab_loss = torch.stack(latent_stabs).mean() if latent_stabs else torch.tensor(0.0).to(ce_loss.device)
 
-        # 평균 내서 wandb에 기록
-        log_dict = {}
-        for k, v in stats.items():
-            if len(v) > 0:
-                log_dict[k] = sum(v) / len(v)
+        # 4. 가중치 적용
+        w_const = self.lambda_stab * const_loss
+        w_vib = self.lambda_vib * vib_loss
+        w_latent = self.lambda_latent_stability * latent_stab_loss
 
-        if len(log_dict) > 0:
-            wandb.log(log_dict, step=state.global_step)
+        loss = ce_loss + w_const + w_vib + w_latent
+        
+        # 매 스텝마다 업데이트
+        self.loss_track["ce_loss"] = ce_loss.item()
+        self.loss_track["raw_const_loss"] = const_loss.item()
+        self.loss_track["weighted_const_loss"] = w_const.item()
+        self.loss_track["raw_vib_loss"] = vib_loss.item()
+        self.loss_track["weighted_vib_loss"] = w_vib.item()
+        self.loss_track["raw_latent_stab_loss"] = latent_stab_loss.item()
+        self.loss_track["weighted_latent_stab_loss"] = w_latent.item()
+        
+        # 🔥 세부 성분 평균값 저장
+        if kl_divs:
+            self.loss_track["vib_mu2"] = torch.stack(mu2_vals).mean().item()
+            self.loss_track["vib_logvar"] = torch.stack(logvar_vals).mean().item()
+            self.loss_track["vib_sigma2"] = torch.stack(sigma2_vals).mean().item()
 
+        return (loss, outputs) if return_outputs else loss
 
-
-# ----------------------------------------------------------
-# Build adapter config
-# ----------------------------------------------------------
-def build_adapter(adapter_type, r, alpha):
+    def log(self, logs: Dict[str, float]) -> None:
+        logs["train/ce_loss"] = self.loss_track["ce_loss"]
+        logs["train/const_raw"] = self.loss_track["raw_const_loss"]
+        logs["train/const_weighted"] = self.loss_track["weighted_const_loss"]
+        logs["train/vib_raw"] = self.loss_track["raw_vib_loss"]
+        logs["train/vib_weighted"] = self.loss_track["weighted_vib_loss"]
+        logs["train/latent_stab_raw"] = self.loss_track["raw_latent_stab_loss"]
+        logs["train/latent_stab_weighted"] = self.loss_track["weighted_latent_stab_loss"]
+        
+        # 🔥 WandB에 성분별 로그 추가
+        logs["train/vib_component_mu2"] = self.loss_track["vib_mu2"]
+        logs["train/vib_component_logvar"] = self.loss_track["vib_logvar"]
+        logs["train/vib_component_sigma2"] = self.loss_track["vib_sigma2"]
+        
+        super().log(logs)
+        
+# ==========================================================
+# Adapter builder (MODIFIED: Added AdaLoRA, BitFit)
+# ==========================================================
+def build_adapter(adapter_type, r, alpha, model=None):
     at = adapter_type.lower()
 
-    # LoRA
-    if at in ["lora", "lora_init"]:
-        return LoraConfig(
-            r=r, 
-            lora_alpha=alpha,
-            target_modules=["query_proj", "key_proj", "value_proj", "dense"],
-            task_type="SEQ_CLS"
-        )
-
-    # PiSSA uses LoRAConfig but with different init scheme (pissa_init)
-    if at in ["pissa", "pissa_init"]:
-        return LoraConfig(
+    # 1. LoRA 계열 (LoRA, DoRA, PiSSA)
+    if at in ["lora", "dora", "pissa"]:
+        kwargs = dict(
             r=r,
             lora_alpha=alpha,
             target_modules=["query_proj", "key_proj", "value_proj", "dense"],
             task_type="SEQ_CLS",
-            init_lora_weights="pissa"  # <-- PiSSA 핵심
+        )
+        if at == "pissa":
+            kwargs["init_lora_weights"] = "pissa"
+        if at == "dora":
+            kwargs["use_dora"] = True
+        return LoraConfig(**kwargs)
+
+    # 2. AdaLoRA
+    if at == "adalora":
+        return AdaLoraConfig(
+            r=r,
+            lora_alpha=alpha,
+            target_modules=["query_proj", "key_proj", "value_proj", "dense"],
+            task_type="SEQ_CLS",
         )
 
-    # LAVA
+    # 3. LAVA
     if at in ["lava", "lava_init"]:
         return LavaConfig(
             r=r,
+            alpha=alpha,
             target_modules=["query_proj", "key_proj", "value_proj", "dense"],
-            task_type="SEQ_CLS"
+            task_type="SEQ_CLS",
         )
+
+    # 4. BitFit
+    if at == "bitfit":
+        return "bitfit"
 
     raise ValueError(f"Unknown adapter type: {adapter_type}")
 
 
-# ----------------------------------------------------------
-# MAIN TRAIN FUNCTION
-# ----------------------------------------------------------
+# ==========================================================
+# MAIN
+# ==========================================================
 def main(args):
     task = args.task
     adapter_type = args.adapter
-
+    
     meta = GLUE_META[task]
     num_labels = meta["num_labels"]
     main_metric = meta["main"]
     eval_key = meta["eval_key"]
-
-    # -------------------------------
-    # 1. Load dataset
-    # -------------------------------
-    print("[1] Loading dataset...")
+    
     raw = load_dataset("glue", task)
-
     tokenizer = AutoTokenizer.from_pretrained(args.model)
 
     def preprocess(batch):
-        s1 = batch[meta["s1"]]
-        s2 = batch[meta["s2"]] if meta["s2"] else None
         return tokenizer(
-            s1, s2,
+            batch[meta["s1"]],
+            batch[meta["s2"]] if meta["s2"] else None,
             truncation=True,
             padding="max_length",
             max_length=128,
@@ -170,90 +298,141 @@ def main(args):
 
     encoded = raw.map(preprocess, batched=True)
     encoded = encoded.rename_column("label", "labels")
-    encoded.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-
-    # -------------------------------
-    # 2. Base model
-    # -------------------------------
-    print("[2] Loading base model...")
-    base = AutoModelForSequenceClassification.from_pretrained(
-        args.model, num_labels=num_labels
+    encoded.set_format(
+        type="torch",
+        columns=["input_ids", "attention_mask", "labels"],
     )
 
-    # -------------------------------
-    # 3. Load hyperparams
-    # -------------------------------
+    base = AutoModelForSequenceClassification.from_pretrained(
+        args.model,
+        num_labels=num_labels,
+    )
+
+    # Config 매핑
     at = adapter_type.lower()
-
-    if at in ["pissa", "pissa_init"]:
-        cfg = PISSA_TASK_CONFIG[task]
-
-    elif at in ["dora", "dora_init"]:
-        cfg = DORA_TASK_CONFIG[task]
-
-    elif at in ["lora", "lora_init"]:
-        cfg = LORA_TASK_CONFIG[task]
-
-    elif at in ["lava", "lava_init"]:
-        cfg = LAVA_TASK_CONFIG[task]
-
-    else:
-        raise ValueError(f"Unknown adapter type: {adapter_type}")
+    config_map = {
+        "pissa": PISSA_TASK_CONFIG,
+        "dora": DORA_TASK_CONFIG,
+        "lora": LORA_TASK_CONFIG,
+        "lava": LAVA_TASK_CONFIG,
+        "adalora": ADALORA_TASK_CONFIG,
+        "bitfit": BITFIT_TASK_CONFIG
+    }
+    
+    task_configs = config_map.get(at, LORA_TASK_CONFIG)
+    cfg = task_configs.get(task, task_configs.get("default", {"epochs": 3, "lr": 2e-4, "batch": 32}))
 
     epochs = cfg["epochs"]
     lr = args.learning_rate if args.learning_rate is not None else cfg["lr"]
     batch = args.batch if args.batch is not None else cfg["batch"]
-    alpha = args.alpha if args.alpha is not None else cfg.get("alpha", None)
+    alpha = args.alpha if args.alpha is not None else cfg.get("alpha", args.r * 2)
+
+    if args.alpha is not None:
+        # 사용자가 명시적으로 --alpha를 준 경우
+        final_alpha = args.alpha
+    elif at in ["lava", "lava_init"]:
+        # LAVA일 경우 r=8, alpha=4 기준 sqrt scaling 적용
+        # 공식: alpha = 4 * sqrt(r / 8)
+        final_alpha = 4 * math.sqrt(args.r / 8)
+        print(f"[*] LAVA Optimal Alpha calculated: {final_alpha:.2f} (r={args.r})")
+    else:
+        # 일반 LoRA 계열은 기존 방식(cfg 또는 r*2) 유지
+        final_alpha = cfg.get("alpha", args.r)
 
 
-    # -------------------------------
-    # 4. PEFT Config
-    # -------------------------------
-    print(f"[3] Creating adapter {adapter_type}...")
-    peft_cfg = build_adapter(adapter_type, r=args.r, alpha=alpha)
+    # Adapter 적용
+    peft_cfg = build_adapter(adapter_type, r=args.r, alpha=final_alpha)
+    
+    
+    
+        
+    if at == "pissa":
+        cache_dir = ".precomputed"
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # 모델명과 Rank를 조합해 고유 파일명 생성
+        model_name_safe = args.model.replace("/", "_")
+        cache_path = os.path.join(cache_dir, f"{model_name_safe}_r{args.r}.pt")
 
-    print("[4] Injecting adapter...")
-    model = get_peft_model(base, peft_cfg)
+        if os.path.exists(cache_path):
+            print(f"[*] Found precomputed PiSSA weights at {cache_path}. Loading...")
+            # 캐시가 있으면 SVD 연산을 건너뜀
+            peft_cfg.init_lora_weights = False
+            model = get_peft_model(base, peft_cfg)
+            
+            # 저장된 PiSSA 가중치(A, B 및 수정된 base) 주입
+            checkpoint = torch.load(cache_path, map_location="cpu")
+            model.load_state_dict(checkpoint, strict=False)
+            print(f"[*] PiSSA initialization skipped and weights loaded from cache.")
+        else:
+            print(f"[*] No precomputed weights found. Computing PiSSA SVD (this may take a while)...")
+            peft_cfg.init_lora_weights = "pissa"
+            model = get_peft_model(base, peft_cfg)
+            
+            # 초기화된 가중치 저장
+            to_save = {}
+            for name, param in model.named_parameters():
+                if "lora_" in name or "pissa" in name or any(tm in name for tm in peft_cfg.target_modules):
+                    if param.requires_grad or "base_layer" in name:
+                        to_save[name] = param.cpu().detach()
+            
+            torch.save(to_save, cache_path)
+            print(f"[*] PiSSA SVD computation finished and saved to {cache_path}")
 
-    # -------------------------------
-    # 5. Metrics
-    # -------------------------------
-    metric = load_metric(main_metric)
+    elif adapter_type.lower() == "bitfit":
+        # BitFit 전용 로직
+        model = base
+        for name, param in model.named_parameters():
+            if "bias" in name or "classifier" in name or "pooler" in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        print("[*] BitFit adapter applied.")
+
+    else:
+        # LAVA, LoRA, DoRA 등 일반적인 어댑터 생성
+        model = get_peft_model(base, peft_cfg)
+        print(f"[*] {adapter_type.upper()} adapter applied.") 
+    
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    all_params = sum(p.numel() for p in model.parameters())
+    trainable_percentage = 100 * trainable_params / all_params   
+    print(f"trainable params: {trainable_params:,} || all params: {all_params:,} || trainable%: {trainable_percentage:.4f}")
+    
+    metric = load_metric("glue", task)
+    
 
     def compute_metrics(eval_pred):
         preds, labels = eval_pred
         if num_labels == 1:
-            preds = preds[:, 0]
+            preds = preds.squeeze()
         else:
             preds = preds.argmax(-1)
-        return metric.compute(predictions=preds, references=labels)
-
-    # -------------------------------
-    # 6. wandb Setup
-    # -------------------------------
-    model_name = args.model.split("/")[-1]
-    run_name = f"{adapter_type}_{task}_seed{args.seed}_{model_name}_r{args.r}"
-
-    wandb.init(
-        project="GLUE-nlu-final",
-        name=run_name,
-        config={
-            "task": task,
-            "adapter": adapter_type,
-            "seed": args.seed,
-            "learning_rate": lr,
-            "batch": batch,
-            "epochs": epochs,
-            "r": args.r,
-            "alpha": alpha,
-            "model": args.model
-        }
+        
+        out = metric.compute(predictions=preds, references=labels)
+        out["main"] = out[main_metric]
+        return out
+    
+    
+    run_name = (
+        f"{adapter_type}_{task}_"
+        f"r{args.r}_a{final_alpha:.1f}_"
+        f"vb{args.lambda_vib}_st{args.lambda_stab}_"
+        f"ls{args.lambda_latent_stability}_"
+        f"s{args.seed}"
     )
+    
+    wandb.init(
+        project="NLU-total-comparison",
+        name=run_name,
+        config=vars(args)
+    )
+    wandb.run.summary["trainable_params"] = trainable_params
+    wandb.run.summary["all_params"] = all_params
+    wandb.run.summary["trainable_percentage"] = trainable_percentage
 
-    # -------------------------------
-    # 7. Trainer
-    # -------------------------------
-    print("[5] Training...")
+    best_callback = BestMetricCallback(main_metric)
+
     args_out = TrainingArguments(
         output_dir=f"./{adapter_type}_{task}",
         evaluation_strategy="epoch",
@@ -262,59 +441,52 @@ def main(args):
         per_device_train_batch_size=batch,
         per_device_eval_batch_size=batch,
         num_train_epochs=epochs,
-        load_best_model_at_end=False,
-        metric_for_best_model=main_metric,
         report_to="wandb",
         seed=args.seed,
-        data_seed=args.seed,
+        logging_steps=10,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False}
     )
 
-    trainer = Trainer(
-        model=model,
-        args=args_out,
-        train_dataset=encoded["train"],
-        eval_dataset=encoded[eval_key],
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-        callbacks=[LavaGradCallback()],
-    )
-
-
+    if at in ["lava", "lava_init"]:
+        trainer = StabilityLavaTrainer(
+            model=model,
+            args=args_out,
+            train_dataset=encoded["train"],
+            eval_dataset=encoded[eval_key],
+            tokenizer=tokenizer,
+            compute_metrics=compute_metrics,
+            lambda_vib=args.lambda_vib,
+            lambda_stab=args.lambda_stab,
+            lambda_latent_stability=args.lambda_latent_stability,
+            callbacks=[best_callback],
+        )
+    else:
+        trainer = Trainer(
+            model=model,
+            args=args_out,
+            train_dataset=encoded["train"],
+            eval_dataset=encoded[eval_key],
+            tokenizer=tokenizer,
+            compute_metrics=compute_metrics,
+            callbacks=[best_callback],
+        )
 
     trainer.train()
-    # -------------------------------
-    # Compute BEST eval accuracy
-    # -------------------------------
-    best_acc = None
+    best_main = None
     for log in trainer.state.log_history:
-        if "eval_accuracy" in log:
-            acc = log["eval_accuracy"]
-            if best_acc is None or acc > best_acc:
-                best_acc = acc
+        if f"eval_{main_metric}" in log:
+            val = log[f"eval_{main_metric}"]
+            best_main = val if best_main is None else max(best_main, val)
 
-    if best_acc is not None:
-        print(f"[BEST] Best Accuracy during training: {best_acc:.4f}")
-        wandb.log({"best_eval_accuracy": best_acc})
+    if best_main is not None:
+        wandb.run.summary[f"best_{main_metric}"] = best_main
 
-    print("[6] Evaluating...")
-    result = trainer.evaluate()
-
-    wandb.log({"final_eval": result})
-    
-
-
-    wandb.log({"final_eval": result})
     wandb.finish()
 
-    print(result)
 
-
-# ----------------------------------------------------------
-# CLI
-# ----------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--adapter", type=str, required=True)
     parser.add_argument("--model", type=str, default="microsoft/deberta-v3-base")
@@ -323,11 +495,11 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=None)
     parser.add_argument("--batch", type=int, default=None)
     parser.add_argument("--alpha", type=int, default=None)
-
-
-
-
+    parser.add_argument("--lambda_vib", type=float, default=0.1)
+    parser.add_argument("--lambda_stab", type=float, default=0.1)
+    parser.add_argument("--lambda_latent_stability", type=float, default=1.0)
+    
     args = parser.parse_args()
+    print(args.alpha)
     setup_seed(args.seed)
-
     main(args)
